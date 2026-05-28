@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { motion } from 'motion/react';
 import { Order, User, Customer, OrderStage, StatusLog } from '../types';
 import { generateUUID } from '../db/store';
 import { 
@@ -280,7 +281,10 @@ export default function OrderDetailsView({
                       {i < stages.length - 1 && (
                         <div className={`absolute left-[13px] top-[28px] w-0.5 h-[18px] ${passed ? 'bg-green-600' : 'bg-stone-200'}`} />
                       )}
-                      <div
+                      <motion.div
+                        initial={active ? { scale: 0.82 } : { scale: 1 }}
+                        animate={active ? { scale: [1, 1.08, 1], y: [0, -2, 0] } : { scale: 1, y: 0 }}
+                        transition={active ? { type: "tween", duration: 1.5, ease: "easeInOut", repeat: Infinity } : { type: "tween", duration: 0.2 }}
                         className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 z-10 text-[10px] font-mono font-bold transition ${
                           active
                             ? 'bg-[#593622] text-amber-300 border-amber-500 shadow-md ring-4 ring-amber-500/10'
@@ -289,16 +293,22 @@ export default function OrderDetailsView({
                             : 'bg-white text-stone-400 border-stone-200'
                         }`}
                       >
-                        {passed ? '✓' : i + 1}
-                      </div>
+                        {passed ? (
+                          <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.1 }}>✓</motion.span>
+                        ) : i + 1}
+                      </motion.div>
                       <div className="flex-1">
                         <span className={`text-[11px] font-semibold ${active ? 'text-stone-900 font-bold' : 'text-stone-500'}`}>
                           {stg}
                         </span>
                         {active && (
-                          <span className="text-[9px] text-[#593622] font-black uppercase tracking-wider block leading-none mt-1">
+                          <motion.span 
+                            initial={{ opacity: 0, x: -5 }} 
+                            animate={{ opacity: 1, x: 0 }} 
+                            className="text-[9px] text-[#593622] font-black uppercase tracking-wider block leading-none mt-1"
+                          >
                             Current Stage
-                          </span>
+                          </motion.span>
                         )}
                       </div>
                     </div>
@@ -315,7 +325,10 @@ export default function OrderDetailsView({
                     const active = i === currentStageIndex;
                     return (
                       <div key={stg} className="relative z-10 flex flex-col items-center shrink-0 w-[80px]">
-                        <div
+                        <motion.div
+                          initial={active ? { scale: 0.75, y: 4 } : { scale: 1, y: 0 }}
+                          animate={active ? { scale: [1, 1.08, 1], y: [0, -3, 0] } : { scale: 1, y: 0 }}
+                          transition={active ? { type: "tween", ease: "easeInOut", duration: 1.5, repeat: Infinity } : { type: "spring", stiffness: 220, damping: 15 }}
                           className={`h-7 w-7 rounded-full flex items-center justify-center border transition ${
                             active
                               ? 'bg-[#593622] text-amber-300 border-amber-500 shadow-md ring-4 ring-amber-500/10'
@@ -324,8 +337,12 @@ export default function OrderDetailsView({
                               : 'bg-white text-stone-400 border-stone-200'
                           }`}
                         >
-                          {passed ? '✓' : i + 1}
-                        </div>
+                          {passed ? (
+                            <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }}>✓</motion.span>
+                          ) : (
+                            i + 1
+                          )}
+                        </motion.div>
                         <span className={`text-[9px] font-sans text-center mt-2 block truncate w-full ${active ? 'text-stone-900 font-extrabold' : 'text-stone-400'}`}>
                           {stg}
                         </span>
@@ -337,7 +354,13 @@ export default function OrderDetailsView({
             </div>
 
             {/* Stage description + admin control layout */}
-            <div className="bg-stone-50 p-4 rounded-xl border border-stone-150 space-y-3.5 text-xs leading-relaxed">
+            <motion.div
+              key={order.current_status}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: "easeOut" }}
+              className="bg-stone-50 p-4 rounded-xl border border-stone-150 space-y-3.5 text-xs leading-relaxed"
+            >
               <div className="flex justify-between items-center flex-wrap gap-2">
                 <div>
                   <span className="text-[10px] font-bold text-[#593622] uppercase tracking-wider">Current Active Gate</span>
@@ -419,7 +442,7 @@ export default function OrderDetailsView({
                   )}
                 </div>
               )}
-            </div>
+            </motion.div>
           </div>
 
           {/* SECTION 2: PRODUCT DETAILS */}

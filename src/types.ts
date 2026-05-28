@@ -151,3 +151,17 @@ export interface AlertLog {
   alerted_at: string;
   resolved_at?: string;
 }
+
+export interface NotificationItem {
+  id: string;
+  order_id: string;
+  article_no: string;
+  category: string;
+  sub_category: string;
+  old_stage: OrderStage;
+  new_stage: OrderStage;
+  changed_by_name: string;
+  timestamp: string;
+  is_read: boolean;
+}
+

@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { motion } from 'motion/react';
 import { loadState, saveState, AppState } from './db/store';
 import { User, Customer, Order, StatusLog } from './types';
 
@@ -18,6 +19,7 @@ import OrderDetailsView from './components/OrderDetailsView';
 import CalendarTab from './components/CalendarTab';
 import UsersTab from './components/UsersTab';
 import WorkerDashboard from './components/WorkerDashboard';
+import NotificationCenter from './components/NotificationCenter';
 
 // Utility icons
 import { HardHat, SlidersHorizontal, Settings as SettingsIcon, ShieldCheck } from 'lucide-react';
@@ -201,63 +203,129 @@ export default function App() {
         {/* Dynamic Inner Application Page Canvas */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto pb-20 lg:pb-8">
           
+          {/* Workshop Live Status Feed Header Row */}
+          <div className="flex justify-between items-center bg-white border border-stone-200/80 rounded-2xl p-4 mb-6 shadow-xs gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="bg-amber-100 text-[#593622] p-2.5 rounded-xl hidden sm:flex items-center justify-center">
+                <ShieldCheck size={20} className="stroke-[2.5]" />
+              </div>
+              <div className="min-w-0 text-left">
+                <h4 className="font-extrabold text-[#593622] text-xs uppercase tracking-wider leading-none">Workshop Live Feed</h4>
+                <p className="text-[11px] text-stone-500 mt-1 truncate">
+                  Poller active: Monitoring assignments for <span className="font-semibold text-stone-800">{currentUser.name}</span> ({currentUser.role.replace('_', ' ')})
+                </p>
+              </div>
+            </div>
+            
+            <div className="shrink-0">
+              <NotificationCenter
+                orders={db.orders}
+                currentUser={currentUser}
+                users={db.users}
+                onViewOrder={handleViewOrder}
+                onUpdateOrder={handleUpdateOrder}
+              />
+            </div>
+          </div>
+
           {/* TAB: DASHBOARD VIEW (Admin Only) */}
           {currentTab === 'dashboard' && isAdmin && (
-            <DashboardTab
-              orders={db.orders}
-              users={db.users}
-              customers={db.customers}
-              onNavigateTab={(tab) => setCurrentTab(tab)}
-              onViewOrder={handleViewOrder}
-            />
+            <motion.div
+              key="dashboard"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+            >
+              <DashboardTab
+                orders={db.orders}
+                users={db.users}
+                customers={db.customers}
+                onNavigateTab={(tab) => setCurrentTab(tab)}
+                onViewOrder={handleViewOrder}
+              />
+            </motion.div>
           )}
 
           {/* TAB: ORDERS DIRECTORY LISTINGS (Admin Only) */}
           {currentTab === 'orders' && isAdmin && (
-            <OrdersTab
-              orders={db.orders}
-              users={db.users}
-              customers={db.customers}
-              onViewOrder={handleViewOrder}
-              onNavigateTab={(tab) => setCurrentTab(tab)}
-              isAdmin={isAdmin}
-            />
+            <motion.div
+              key="orders"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+            >
+              <OrdersTab
+                orders={db.orders}
+                users={db.users}
+                customers={db.customers}
+                onViewOrder={handleViewOrder}
+                onNavigateTab={(tab) => setCurrentTab(tab)}
+                isAdmin={isAdmin}
+              />
+            </motion.div>
           )}
 
           {/* TAB: CREATE NEW CUSTOM SERIAL ORDER (Wizard Form, Admin Only) */}
           {currentTab === 'create_order' && isAdmin && (
-            <OrderForm
-              orders={db.orders}
-              users={db.users}
-              customers={db.customers}
-              onSave={handleSaveOrder}
-              onCancel={() => setCurrentTab('orders')}
-            />
+            <motion.div
+              key="create_order"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+            >
+              <OrderForm
+                orders={db.orders}
+                users={db.users}
+                customers={db.customers}
+                onSave={handleSaveOrder}
+                onCancel={() => setCurrentTab('orders')}
+              />
+            </motion.div>
           )}
 
           {/* TAB: CALENDAR DEADLINES TRACKING (Admin Only) */}
           {currentTab === 'calendar' && isAdmin && (
-            <CalendarTab
-              orders={db.orders}
-              customers={db.customers}
-              onViewOrder={handleViewOrder}
-              onNavigateTab={(tab) => setCurrentTab(tab)}
-            />
+            <motion.div
+              key="calendar"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+            >
+              <CalendarTab
+                orders={db.orders}
+                customers={db.customers}
+                onViewOrder={handleViewOrder}
+                onNavigateTab={(tab) => setCurrentTab(tab)}
+              />
+            </motion.div>
           )}
 
           {/* TAB: TEAM MEMBERS DIRECTORY ROSTERS (Admin Only) */}
           {currentTab === 'users' && isAdmin && (
-            <UsersTab
-              users={db.users}
-              onAddUser={handleAddUser}
-              onUpdateUser={handleUpdateUser}
-              currentUser={currentUser}
-            />
+            <motion.div
+              key="users"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+            >
+              <UsersTab
+                users={db.users}
+                onAddUser={handleAddUser}
+                onUpdateUser={handleUpdateUser}
+                currentUser={currentUser}
+              />
+            </motion.div>
           )}
 
           {/* TAB: REPORTS GRAPHS VIEW (Simulated, Admin Only) */}
           {currentTab === 'reports' && isAdmin && (
-            <div className="space-y-6">
+            <motion.div
+              key="reports"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className="space-y-6"
+            >
               <div>
                 <h1 className="text-2xl font-black text-stone-900 tracking-tight font-display">Workshop Reports</h1>
                 <p className="text-stone-500 text-xs">Deep dive monthly volume logs and staff workload capacities</p>
@@ -269,12 +337,18 @@ export default function App() {
                   Go back to Dashboard
                 </button>
               </div>
-            </div>
+            </motion.div>
           )}
 
           {/* TAB: SETTINGS & PARAMETERS (Simulated, Admin Only) */}
           {currentTab === 'settings' && isAdmin && (
-            <div className="space-y-6 font-sans">
+            <motion.div
+              key="settings"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className="space-y-6 font-sans"
+            >
               <div>
                 <h1 className="text-2xl font-black text-stone-900 tracking-tight font-display">Staging Settings</h1>
                 <p className="text-stone-500 text-xs">Configure custom furniture category templates and alert thresholds</p>
@@ -298,23 +372,36 @@ export default function App() {
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
 
           {/* TAB: WORKER ASSIGNED WORKBENCH (Carpenter or Polish Person Only) */}
           {currentTab === 'my_orders' && !isAdmin && (
-            <WorkerDashboard
-              currentUser={currentUser}
-              orders={db.orders}
-              customers={db.customers}
-              statusLogs={db.statusLogs}
-              onUpdateOrder={handleUpdateOrder}
-            />
+            <motion.div
+              key="my_orders"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+            >
+              <WorkerDashboard
+                currentUser={currentUser}
+                orders={db.orders}
+                customers={db.customers}
+                statusLogs={db.statusLogs}
+                onUpdateOrder={handleUpdateOrder}
+              />
+            </motion.div>
           )}
 
           {/* TAB: PROFILE PAGE (Carpenter or Polish Person Only) */}
           {currentTab === 'profile' && !isAdmin && (
-            <div className="space-y-6">
+            <motion.div
+              key="profile"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className="space-y-6"
+            >
               <div>
                 <h1 className="text-2xl font-black text-stone-900 tracking-tight font-display">My Team Member Settings</h1>
                 <p className="text-stone-500 text-xs">Review personal workload, telephone details, and workshop credentials</p>
@@ -344,24 +431,31 @@ export default function App() {
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
 
           {/* SUB-VIEW TAB (Admin Only / Deep view): FULL SPEC SHEET & DETAILS */}
           {currentTab === 'order_details' && selectedOrderId && (
-            <OrderDetailsView
-              orderId={selectedOrderId}
-              orders={db.orders}
-              users={db.users}
-              customers={db.customers}
-              statusLogs={db.statusLogs}
-              onBack={() => {
-                setSelectedOrderId(null);
-                setCurrentTab(isAdmin ? 'orders' : 'my_orders');
-              }}
-              onUpdateOrder={handleUpdateOrder}
-              currentUser={currentUser}
-            />
+            <motion.div
+              key="order_details"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+            >
+              <OrderDetailsView
+                orderId={selectedOrderId}
+                orders={db.orders}
+                users={db.users}
+                customers={db.customers}
+                statusLogs={db.statusLogs}
+                onBack={() => {
+                  setSelectedOrderId(null);
+                  setCurrentTab(isAdmin ? 'orders' : 'my_orders');
+                }}
+                onUpdateOrder={handleUpdateOrder}
+                currentUser={currentUser}
+              />
+            </motion.div>
           )}
 
         </main>

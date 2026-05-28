@@ -4,6 +4,7 @@
  */
 
 import { User } from '../types';
+import { motion } from 'motion/react';
 import {
   LayoutDashboard,
   ClipboardList,
@@ -151,7 +152,7 @@ export default function Sidebar({
         </div>
 
         {/* Scaled Interactive Menu Navigation Links */}
-        <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 py-6 space-y-1.5 overflow-y-auto">
           {navItems.map((item) => {
             const IconComponent = item.icon;
             const isActive = currentTab === item.id;
@@ -159,18 +160,25 @@ export default function Sidebar({
               <button
                 key={item.id}
                 onClick={() => handleLinkClick(item.id)}
-                className={`w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all ${
-                  isActive
-                    ? 'bg-[#593622] text-amber-300 shadow-md border-l-4 border-amber-500 scale-[1.02]'
-                    : 'text-stone-400 hover:text-stone-100 hover:bg-stone-800/20'
-                }`}
+                className="w-full relative flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-xs font-semibold tracking-wide transition-colors group outline-none"
                 style={{ contentVisibility: 'auto' }}
               >
-                <IconComponent
-                  size={16}
-                  className={isActive ? 'text-amber-400' : 'text-stone-500 group-hover:text-stone-300'}
-                />
-                {item.label}
+                {isActive && (
+                  <motion.div
+                    layoutId="desktopActiveTabIndicator"
+                    className="absolute inset-0 bg-[#593622] rounded-xl border-l-4 border-amber-500 z-0 shadow-sm"
+                    transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-3.5 w-full">
+                  <IconComponent
+                    size={16}
+                    className={isActive ? 'text-amber-400 font-extrabold' : 'text-stone-500 group-hover:text-stone-300 transition-colors'}
+                  />
+                  <span className={isActive ? 'text-amber-300 font-extrabold' : 'text-stone-450 group-hover:text-stone-200 transition-colors'}>
+                    {item.label}
+                  </span>
+                </span>
               </button>
             );
           })}

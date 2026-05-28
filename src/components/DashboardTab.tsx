@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { motion } from 'motion/react';
 import { Order, User, Customer, OrderStage } from '../types';
 import { Eye, Clock, CheckCircle2, AlertTriangle, Briefcase, CalendarCheck, ArrowUpRight } from 'lucide-react';
 
@@ -90,57 +91,85 @@ export default function DashboardTab({
 
       {/* Top Metric Stats Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white p-3 sm:p-4 rounded-2xl shadow-xs border border-stone-200/80 hover:border-amber-300 transition-all flex items-center justify-between gap-1.5 min-w-0">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 15 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.05, type: 'spring', stiffness: 260, damping: 20 }}
+          whileHover={{ scale: 1.025, y: -3, borderColor: '#d97706' }}
+          className="bg-white p-3 sm:p-4 rounded-2xl shadow-xs border border-stone-200/80 transition-all flex items-center justify-between gap-1.5 min-w-0 cursor-pointer"
+          onClick={() => onNavigateTab('orders')}
+        >
           <div className="min-w-0 flex-1">
             <span className="text-[9px] sm:text-[10px] uppercase font-mono tracking-wider text-stone-400 block font-bold truncate">Total Orders</span>
             <span className="text-xl sm:text-2xl font-black text-stone-800 font-display block mt-0.5">{totalOrdersUrl}</span>
-            <button onClick={() => onNavigateTab('orders')} className="text-[10px] text-amber-700 hover:underline font-semibold flex items-center gap-0.5 mt-1 sm:mt-2 truncate">
+            <span className="text-[10px] text-amber-700 font-semibold flex items-center gap-0.5 mt-1 sm:mt-2 truncate">
               View all
-            </button>
+            </span>
           </div>
           <div className="bg-[#fcf8f2] text-amber-700 p-2 rounded-xl border border-amber-200/40 shrink-0 hidden xs:block">
             <Briefcase size={16} className="sm:w-5 sm:h-5 text-[#593622]" />
           </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-white p-3 sm:p-4 rounded-2xl shadow-xs border border-stone-200/80 hover:border-blue-300 transition-all flex items-center justify-between gap-1.5 min-w-0">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 15 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.1, type: 'spring', stiffness: 260, damping: 20 }}
+          whileHover={{ scale: 1.025, y: -3, borderColor: '#3b82f6' }}
+          className="bg-white p-3 sm:p-4 rounded-2xl shadow-xs border border-stone-200/80 transition-all flex items-center justify-between gap-1.5 min-w-0 cursor-pointer"
+          onClick={() => onNavigateTab('orders')}
+        >
           <div className="min-w-0 flex-1">
             <span className="text-[9px] sm:text-[10px] uppercase font-mono tracking-wider text-stone-400 block font-bold truncate">In Progress</span>
             <span className="text-xl sm:text-2xl font-black text-stone-800 font-display block mt-0.5">{inProgressCount}</span>
-            <button onClick={() => onNavigateTab('orders')} className="text-[10px] text-blue-700 hover:underline font-semibold mt-1 sm:mt-2 block truncate">
+            <span className="text-[10px] text-blue-700 font-semibold mt-1 sm:mt-2 block truncate">
               View all Active
-            </button>
+            </span>
           </div>
           <div className="bg-[#eff6ff] text-blue-700 p-2 rounded-xl border border-blue-200/40 shrink-0 hidden xs:block">
             <Clock size={16} className="sm:w-5 sm:h-5 text-blue-600" />
           </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-white p-3 sm:p-4 rounded-2xl shadow-xs border border-stone-200/80 hover:border-green-300 transition-all flex items-center justify-between gap-1.5 min-w-0">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 15 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.15, type: 'spring', stiffness: 260, damping: 20 }}
+          whileHover={{ scale: 1.025, y: -3, borderColor: '#16a34a' }}
+          className="bg-white p-3 sm:p-4 rounded-2xl shadow-xs border border-stone-200/80 transition-all flex items-center justify-between gap-1.5 min-w-0 cursor-pointer"
+          onClick={() => onNavigateTab('orders')}
+        >
           <div className="min-w-0 flex-1">
             <span className="text-[9px] sm:text-[10px] uppercase font-mono tracking-wider text-stone-400 block font-bold truncate">Completed</span>
             <span className="text-xl sm:text-2xl font-black text-stone-800 font-display block mt-0.5">{completedCount}</span>
-            <button onClick={() => onNavigateTab('orders')} className="text-[10px] text-green-700 hover:underline font-semibold mt-1 sm:mt-2 block truncate">
+            <span className="text-[10px] text-green-700 font-semibold mt-1 sm:mt-2 block truncate">
               View all Ready
-            </button>
+            </span>
           </div>
           <div className="bg-[#f0fdf4] text-green-700 p-2 rounded-xl border border-green-200/40 shrink-0 hidden xs:block">
             <CheckCircle2 size={16} className="sm:w-5 sm:h-5 text-green-600" />
           </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-white p-3 sm:p-4 rounded-2xl shadow-xs border border-stone-200/80 hover:border-rose-300 transition-all flex items-center justify-between gap-1.5 min-w-0">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 15 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.2, type: 'spring', stiffness: 260, damping: 20 }}
+          whileHover={{ scale: 1.025, y: -3, borderColor: '#e11d48' }}
+          className="bg-white p-3 sm:p-4 rounded-2xl shadow-xs border border-stone-200/80 transition-all flex items-center justify-between gap-1.5 min-w-0 cursor-pointer"
+          onClick={() => onNavigateTab('orders')}
+        >
           <div className="min-w-0 flex-1">
             <span className="text-[9px] sm:text-[10px] uppercase font-mono tracking-wider text-stone-400 block font-bold truncate">Delayed</span>
             <span className="text-xl sm:text-2xl font-black text-stone-800 font-display block mt-0.5">{delayedCount}</span>
-            <span onClick={() => onNavigateTab('orders')} className="text-[10px] text-rose-600 font-bold block mt-1 sm:mt-2 hover:underline cursor-pointer truncate">
+            <span className="text-[10px] text-rose-650 font-bold block mt-1 sm:mt-2 truncate">
               {delayedCount} items flagged
             </span>
           </div>
           <div className="bg-[#fef2f2] text-rose-700 p-2 rounded-xl border border-rose-200/40 shrink-0 hidden xs:block">
             <AlertTriangle size={16} className="sm:w-5 sm:h-5 text-rose-600" />
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Main Charts area */}
@@ -170,7 +199,7 @@ export default function DashboardTab({
                   accumulatedPercent += s.count / totalStagesSum;
 
                   return (
-                    <circle
+                    <motion.circle
                       key={s.name}
                       cx="90"
                       cy="90"
@@ -178,9 +207,13 @@ export default function DashboardTab({
                       fill="transparent"
                       stroke={s.color}
                       strokeWidth="20"
-                      strokeDasharray={strokeDasharray}
                       strokeDashoffset={strokeDashoffset}
-                      className="transition-all duration-300 hover:stroke-[24px] cursor-pointer"
+                      initial={{ strokeDasharray: `0 ${circumference}` }}
+                      animate={{ strokeDasharray: strokeDasharray }}
+                      transition={{ duration: 1.2, ease: "easeOut", delay: 0.1 }}
+                      whileHover={{ strokeWidth: 24 }}
+                      style={{ originX: "90px", originY: "90px" }}
+                      className="cursor-pointer transition-all duration-150"
                     />
                   );
                 });
@@ -196,7 +229,7 @@ export default function DashboardTab({
             {stages.map((stg) => (
               <div key={stg.name} className="flex items-center justify-between text-xs text-stone-600">
                 <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: stg.color }} />
+                  <span className="h-2.5 w-2.5 rounded-full animate-pulse" style={{ backgroundColor: stg.color }} />
                   <span className="font-semibold text-stone-700">{stg.name}</span>
                 </div>
                 <div className="font-mono font-bold text-stone-800">
@@ -231,14 +264,22 @@ export default function DashboardTab({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100">
-                  {orders.slice(0, 5).map((order) => {
+                  {orders.slice(0, 5).map((order, i) => {
                     const cust = customers.find((c) => c.id === order.customer_id);
                     const carpenter = users.find((u) => u.id === order.carpenter_id);
                     return (
-                      <tr key={order.id} className="hover:bg-stone-50/50 transition">
+                      <tr 
+                        key={order.id} 
+                        className="hover:bg-stone-50/50 transition duration-150 cursor-pointer"
+                        onClick={() => onViewOrder(order.id)}
+                      >
                         <td className="py-3 font-mono font-bold text-stone-900">{order.article_no}</td>
                         <td className="py-3 font-semibold text-stone-800">{cust?.name || 'Unknown'}</td>
-                        <td className="py-3 font-medium text-stone-600">{order.current_status}</td>
+                        <td className="py-3 font-medium text-stone-400">
+                          <span className="font-bold text-stone-700 bg-stone-100 px-1.5 py-0.5 rounded text-[10px]">
+                            {order.current_status}
+                          </span>
+                        </td>
                         <td className="py-3 font-medium text-stone-700">
                           {carpenter ? `${carpenter.name} (${carpenter.initials})` : '—'}
                         </td>
@@ -250,7 +291,7 @@ export default function DashboardTab({
                             {order.is_delayed ? 'Delayed' : 'In Progress'}
                           </span>
                         </td>
-                        <td className="py-3 text-right">
+                        <td className="py-3 text-right" onClick={(e) => e.stopPropagation()}>
                           <button
                             onClick={() => onViewOrder(order.id)}
                             className="bg-stone-100 hover:bg-[#593622] hover:text-white text-stone-600 p-1.5 rounded-lg transition"
@@ -285,7 +326,12 @@ export default function DashboardTab({
               const cust = customers.find((c) => c.id === order.customer_id);
               const badge = formatDateBadge(order.delivery_date);
               return (
-                <div key={order.id} className="flex gap-3 hover:bg-stone-50 p-2 rounded-xl transition cursor-pointer" onClick={() => onViewOrder(order.id)}>
+                <motion.div 
+                  key={order.id} 
+                  whileHover={{ scale: 1.015, x: 2 }}
+                  className="flex gap-3 hover:bg-stone-50 p-2 rounded-xl transition cursor-pointer" 
+                  onClick={() => onViewOrder(order.id)}
+                >
                   <div className="bg-stone-100 text-stone-700 font-mono flex flex-col items-center justify-center p-2 rounded-xl border border-stone-200 shrink-0 w-12 h-12">
                     <span className="text-[9px] font-bold text-stone-400 block uppercase leading-none">{badge.month}</span>
                     <span className="text-sm font-black text-stone-800 leading-none block mt-1">{badge.day}</span>
@@ -297,7 +343,7 @@ export default function DashboardTab({
                       {order.category} &rsaquo; {order.sub_category} ({order.size})
                     </span>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>
@@ -305,7 +351,7 @@ export default function DashboardTab({
 
         {/* Right Column: Stage Overview progress stepper */}
         <div className="lg:col-span-8 bg-white p-5 rounded-2xl border border-stone-200/80 flex flex-col">
-          <div className="pb-3 border-b border-stone-100 mb-6">
+          <div className="pb-3 border-b border-stone-100 mb-6 font-sans">
             <h3 className="font-display font-black text-stone-900 text-sm">Stage Overview (Live)</h3>
             <p className="text-[11px] text-stone-400 mt-0.5">Distribution of unit volume across workspace active processes</p>
           </div>
@@ -321,7 +367,9 @@ export default function DashboardTab({
                       <div className={`absolute left-[18px] top-[36px] w-0.5 h-[18px] ${isActive ? 'bg-[#593622]' : 'bg-stone-200'}`} />
                     )}
                     {/* Circle Node wrapper */}
-                    <div
+                    <motion.div
+                      animate={isActive ? { scale: [1, 1.08, 1], rotate: [0, 3, 0] } : { scale: 1, rotate: 0 }}
+                      transition={isActive ? { type: "tween", repeat: Infinity, duration: 3, ease: "easeInOut" } : { type: "tween", duration: 0.25 }}
                       className={`h-9 w-9 rounded-full flex items-center justify-center border font-mono font-black text-xs shrink-0 z-10 transition duration-200 ${
                         isActive
                           ? 'bg-[#593622] text-amber-300 border-amber-500 shadow-md ring-4 ring-amber-500/10'
@@ -330,7 +378,7 @@ export default function DashboardTab({
                       title={`${s.name}: ${s.count} items`}
                     >
                       {s.count}
-                    </div>
+                    </motion.div>
                     <div className="flex-1">
                       <span className={`text-[12px] font-bold ${isActive ? 'text-stone-900 font-extrabold' : 'text-stone-500'}`}>
                         {s.name}
@@ -357,7 +405,9 @@ export default function DashboardTab({
                   return (
                     <div key={s.name} className="relative z-10 flex flex-col items-center select-none shrink-0 w-[80px]">
                       {/* Circle Node wrapper */}
-                      <div
+                      <motion.div
+                        animate={isActive ? { scale: [1, 1.1, 1], y: [0, -2, 0] } : { scale: 1, y: 0 }}
+                        transition={isActive ? { type: "tween", repeat: Infinity, duration: 4, ease: "easeInOut" } : { type: "tween", duration: 0.25 }}
                         className={`h-9 w-9 rounded-full flex items-center justify-center border font-mono font-black text-xs transition duration-200 ${
                           isActive
                             ? 'bg-[#593622] text-amber-300 border-amber-500 shadow-md ring-4 ring-amber-500/10'
@@ -366,8 +416,8 @@ export default function DashboardTab({
                         title={`${s.name}: ${s.count} items`}
                       >
                         {s.count}
-                      </div>
-                      <span className="text-[10px] font-bold text-stone-700 text-center mt-2.5 block truncate w-full">
+                      </motion.div>
+                      <span className={`text-[10px] font-bold text-center mt-2.5 block truncate w-full ${isActive ? 'text-stone-900 font-extrabold' : 'text-stone-400'}`}>
                         {s.name}
                       </span>
                     </div>
