@@ -71,56 +71,26 @@ export default function LoginScreen({ users, onLoginSuccess }: LoginScreenProps)
   };
 
   return (
-    <div className="flex-1 min-h-screen bg-[#fafaf9] flex flex-col justify-between">
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 min-h-[calc(100vh-40px)]">
-        {/* Left Column: Wood/Workshop Banner with ambient overlay */}
-        <div className="lg:col-span-5 bg-stone-900 text-stone-100 p-8 md:p-12 lg:p-16 flex flex-col justify-between relative overflow-hidden bg-cover bg-center"
-             style={{ backgroundImage: `linear-gradient(rgba(45, 30, 20, 0.82), rgba(20, 15, 10, 0.95)), url('https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&q=80&w=800')` }}>
-          
-          {/* Hexagonal workshop emblem */}
-          <div className="flex items-center gap-3">
-            <div className="bg-amber-500 text-stone-950 p-2.5 rounded-xl font-bold text-lg shadow-md border border-amber-400">
-              Bh
+    <div className="flex-1 min-h-screen bg-[#fcfbf9] flex flex-col justify-between">
+      <div className="flex-1 flex flex-col justify-center items-center px-4 py-12 md:py-16 min-h-[calc(100vh-40px)]">
+        {/* Interactive Login Panel Card */}
+        <div className="bg-white border border-stone-200/80 shadow-xl rounded-2xl max-w-md w-full p-6 md:p-10">
+          <div className="w-full space-y-6">
+            <div className="flex items-center gap-3 justify-center pb-5 border-b border-stone-100">
+              <div className="bg-amber-500 text-stone-950 p-2.5 rounded-xl font-bold text-base shadow-md border border-amber-400 leading-none">
+                Bh
+              </div>
+              <div className="text-left">
+                <span className="font-display font-black tracking-wider text-[#593622] text-sm uppercase block leading-none">Bhise'z</span>
+                <span className="text-[9px] uppercase font-mono tracking-wider text-stone-400 block mt-1 font-bold">Workshop Order Tracker</span>
+              </div>
             </div>
-            <div>
-              <span className="font-display font-black tracking-wider text-amber-400 text-lg uppercase block">Bhise'z</span>
-              <span className="text-[10px] uppercase font-mono tracking-widest text-stone-400 block -mt-1">Workshop Order Tracker</span>
-            </div>
-          </div>
 
-          <div className="my-12">
-            <h1 className="font-display text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight">
-              Welcome to <br />
-              <span className="text-amber-400">Bhise'z Workshop</span> <br />
-              Order Tracker
-            </h1>
-            <p className="text-stone-300 mt-4 text-sm leading-relaxed max-w-sm">
-              Track every custom furniture order from initial design blueprints to wood procurement, assembly, double-stage quality audits, and final dispatch.
-            </p>
-            <div className="mt-8 space-y-3 font-mono text-xs text-stone-400">
-              <p className="flex items-center gap-2">✓ YY/MM/XX/NNNN Article Numbers</p>
-              <p className="flex items-center gap-2">✓ Real-time carpenter tracking</p>
-              <p className="flex items-center gap-2">✓ Multi-stage quality control checks</p>
-            </div>
-          </div>
-
-          <div className="bg-[#593622]/40 backdrop-blur-md p-4 rounded-xl border border-stone-800 flex items-start gap-3 max-w-md shadow-lg">
-            <ShieldCheck className="text-amber-400 shrink-0 mt-0.5" size={20} />
-            <div>
-              <div className="font-semibold text-stone-200 text-xs font-sans">Secure. Simple. Organized.</div>
-              <p className="text-[11px] text-stone-400 mt-1">Built specifically for workshop tablet computers and floor staff mobile browsers.</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Interactive Login Panel */}
-        <div className="lg:col-span-7 flex flex-col justify-center px-6 md:px-16 lg:px-24 py-12 bg-white">
-          <div className="max-w-md w-full mx-auto space-y-8">
-            <div className="text-left">
-              <h2 className="text-2xl md:text-3xl font-display font-extrabold text-stone-900 tracking-tight">
+            <div className="text-center">
+              <h2 className="text-xl md:text-2xl font-display font-extrabold text-stone-900 tracking-tight">
                 Sign in to your account
               </h2>
-              <p className="text-stone-500 text-sm mt-2">
+              <p className="text-stone-500 text-xs mt-1">
                 Access your orders and manage workshop operations
               </p>
             </div>
