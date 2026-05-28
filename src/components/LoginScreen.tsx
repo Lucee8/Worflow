@@ -95,6 +95,44 @@ export default function LoginScreen({ users, onLoginSuccess }: LoginScreenProps)
               </p>
             </div>
 
+            {/* Quick Demo Login Helper Card */}
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="text-amber-700 shrink-0" size={16} />
+                <span className="font-bold text-xs text-[#593622]">Quick Demo Credentials</span>
+              </div>
+              <div className="text-[11px] text-stone-600 leading-normal">
+                Explore the Administrator dashboard using these workshop credentials, or sign in instantly with the button below:
+                <div className="mt-2 text-stone-800 font-mono bg-stone-50/80 p-2.5 rounded-lg border border-stone-200/60 divide-y divide-stone-100">
+                  <div className="pb-1.5 flex justify-between items-center">
+                    <span className="font-sans font-semibold text-stone-500 text-[10px] uppercase">Email</span>
+                    <code className="text-amber-900 font-bold select-all bg-amber-500/5 px-1 py-0.5 rounded">admin@bhisesworkshop.com</code>
+                  </div>
+                  <div className="pt-1.5 flex justify-between items-center">
+                    <span className="font-sans font-semibold text-stone-500 text-[10px] uppercase">Password</span>
+                    <div className="text-right">
+                      <code className="text-[#593622] font-bold select-all bg-amber-500/5 px-1 py-0.5 rounded">admin</code>
+                      <span className="text-[9px] text-stone-400 font-sans font-normal ml-1">(any accepted)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail('admin@bhisesworkshop.com');
+                  setPassword('admin');
+                  const foundAdmin = users.find(u => u.email.toLowerCase() === 'admin@bhisesworkshop.com');
+                  if (foundAdmin) {
+                    onLoginSuccess(foundAdmin);
+                  }
+                }}
+                className="w-full bg-[#593622] hover:bg-[#402414] text-white py-2 px-3 rounded-xl font-bold text-xs shadow-sm transition-all duration-200 flex items-center justify-center gap-1.5 hover:shadow-md active:scale-[0.98]"
+              >
+                Instant Admin Sign-In →
+              </button>
+            </div>
+
             {errorMessage && (
               <div className="bg-rose-50 border-l-4 border-rose-600 p-4 rounded-r-lg flex gap-3 text-stone-800 text-xs">
                 <AlertCircle className="text-rose-600 shrink-0 mt-0.5" size={16} />
