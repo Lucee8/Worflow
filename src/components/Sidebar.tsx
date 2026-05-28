@@ -1,0 +1,249 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { User } from '../types';
+import {
+  LayoutDashboard,
+  ClipboardList,
+  PlusSquare,
+  Calendar,
+  Users,
+  LineChart,
+  Settings,
+  HelpCircle,
+  LogOut,
+  Bell,
+  HardHat,
+  Menu,
+  X,
+} from 'lucide-react';
+import React from 'react';
+
+interface SidebarProps {
+  currentUser: User;
+  currentTab: string;
+  onTabChange: (tab: string) => void;
+  onLogout: () => void;
+  notificationsCount?: number;
+}
+
+export default function Sidebar({
+  currentUser,
+  currentTab,
+  onTabChange,
+  onLogout,
+  notificationsCount = 3,
+}: SidebarProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const isAdmin = currentUser.role === 'admin';
+
+  // Define nav links per role
+  const navItems = isAdmin
+    ? [
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'orders', label: 'Orders', icon: ClipboardList },
+        { id: 'create_order', label: 'Create Order', icon: PlusSquare },
+        { id: 'calendar', label: 'Calendar', icon: Calendar },
+        { id: 'users', label: 'Users', icon: Users },
+        { id: 'reports', label: 'Reports', icon: LineChart },
+        { id: 'settings', label: 'Settings', icon: Settings },
+      ]
+    : [
+        { id: 'my_orders', label: 'My Orders', icon: ClipboardList },
+        { id: 'profile', label: 'Profile', icon: Users },
+      ];
+
+  const handleLinkClick = (tabId: string) => {
+    onTabChange(tabId);
+    setMobileMenuOpen(false);
+  };
+
+  return (
+    <>
+      {/* Top Header Bar for Mobile viewports */}
+      <header className="lg:hidden h-14 bg-stone-900 border-b border-stone-800 px-4 flex items-center justify-between sticky top-0 z-40">
+        <div className="flex items-center gap-2">
+          {/* Logo icon */}
+          <div className="bg-amber-500 text-stone-950 px-2 py-1 rounded font-bold text-sm shadow">
+            Bh
+          </div>
+          <div>
+            <span className="font-display font-black text-amber-400 text-xs uppercase tracking-wider block">
+              Bhise'z
+            </span>
+            <span className="text-[8px] tracking-widest text-stone-400 uppercase -mt-1 block">
+              Order Tracker
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          {/* Mobile Notification Badge */}
+          <button className="relative p-1 text-stone-400 hover:text-white" onClick={() => alert("Notification center: 3 new staging updates require QA check.")}>
+            <Bell size={18} />
+            {notificationsCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-rose-600 text-white font-mono text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center">
+                {notificationsCount}
+              </span>
+            )}
+          </button>
+
+          {/* Hamburger toggle */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-1.5 text-stone-300 hover:text-white border border-stone-800 rounded-lg"
+            aria-label="Toggle navigation menu"
+          >
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
+      </header>
+
+      {/* sliding mobile sidebar drawer overlay */}
+      {mobileMenuOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-30 bg-black/60 backdrop-blur-xs"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Primary Left Sidebar for Desktop. Animated/drawer on mobile. */}
+      <aside
+        className={`fixed lg:sticky top-14 lg:top-0 left-0 bottom-0 z-30 lg:z-10 w-64 bg-[#1a110a] text-stone-300 flex flex-col justify-between border-r border-stone-900/40 transition-transform duration-300 lg:translate-x-0 ${
+          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        } ${mobileMenuOpen ? 'h-[calc(100vh-56px)]' : 'h-screen'}`}
+      >
+        {/* Sidebar Brand Header (Desktop only) */}
+        <div className="p-6 border-b border-stone-900/30 hidden lg:block">
+          <div className="flex items-center gap-3">
+            <div className="bg-amber-500 text-stone-950 p-2.5 rounded-xl font-black text-lg shadow-lg border border-amber-400">
+              Bh
+            </div>
+            <div>
+              <span className="font-display font-black text-amber-500 text-sm xl:text-base uppercase tracking-wider block">
+                Bhise'z Workshop
+              </span>
+              <span className="text-[9px] font-mono tracking-widest text-[#a8a29e] uppercase block -mt-1">
+                ORDER TRACKER
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* User context profile card inside sidebar */}
+        <div className="px-4 py-4 bg-[#23170e]/80 border-b border-stone-900/20 lg:block">
+          <div className="flex items-center gap-3">
+            {/* Simple User Initials Avatar with custom background */}
+            <div className="h-10 w-10 rounded-xl bg-[#593622] text-amber-300 font-bold flex items-center justify-center text-xs shadow border border-stone-800">
+              {currentUser.initials}
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="font-bold text-stone-100 text-xs block truncate">
+                {currentUser.name} {currentUser.id === 'user_admin' ? '(You)' : ''}
+              </span>
+              <span className="text-[10px] text-stone-400 font-medium block uppercase tracking-wider">
+                {currentUser.role.replace('_', ' ')}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Scaled Interactive Menu Navigation Links */}
+        <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
+          {navItems.map((item) => {
+            const IconComponent = item.icon;
+            const isActive = currentTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleLinkClick(item.id)}
+                className={`w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all ${
+                  isActive
+                    ? 'bg-[#593622] text-amber-300 shadow-md border-l-4 border-amber-500 scale-[1.02]'
+                    : 'text-stone-400 hover:text-stone-100 hover:bg-stone-800/20'
+                }`}
+                style={{ contentVisibility: 'auto' }}
+              >
+                <IconComponent
+                  size={16}
+                  className={isActive ? 'text-amber-400' : 'text-stone-500 group-hover:text-stone-300'}
+                />
+                {item.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Dedicated Support & Actions block */}
+        <div className="p-4 border-t border-stone-900/30 space-y-1">
+          <button
+            onClick={() => {
+              alert(
+                'Help & Staging Guidelines:\n- Admin creates orders and authorizes Dispatches.\n- Carpenters logs Carpentry status along with real photographic uploads.\n- Polish staff tracks and marks Quality passes.'
+              );
+            }}
+            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-stone-400 hover:text-stone-100 hover:bg-stone-800/30 text-xs font-semibold tracking-wide transition"
+          >
+            <HelpCircle size={15} className="text-stone-500" />
+            Help Guide
+          </button>
+
+          <button
+            onClick={() => {
+              if (window.confirm('Do you really want to sign out from the workshop?')) {
+                onLogout();
+              }
+            }}
+            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-950/25 text-xs font-semibold tracking-wide transition"
+          >
+            <LogOut size={15} className="text-rose-500" />
+            Logout
+          </button>
+        </div>
+      </aside>
+
+      {/* High-fidelity Mobile Bottom Tab Bar (Only matches phone viewports) */}
+      <nav className="lg:hidden fixed bottom-y-0 bottom-0 left-0 right-0 bg-stone-950 border-t border-stone-900 z-40 flex justify-around items-center h-14 px-2 shadow-xl safe-bottom">
+        {navItems.slice(0, 4).map((item) => {
+          const IconComponent = item.icon;
+          const isActive = currentTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => onTabChange(item.id)}
+              className={`flex flex-col items-center justify-center flex-1 h-full font-sans max-w-[80px] ${
+                isActive ? 'text-amber-400' : 'text-stone-500'
+              }`}
+            >
+              <IconComponent size={18} className={isActive ? 'text-amber-400' : 'text-stone-500'} />
+              <span className="text-[9px] mt-1 font-bold truncate max-w-full">{item.label}</span>
+            </button>
+          );
+        })}
+
+        {/* Plus Order / drawer fallback button */}
+        <button
+          onClick={() => {
+            if (isAdmin) {
+              onTabChange('create_order');
+            } else {
+              setMobileMenuOpen(true);
+            }
+          }}
+          className="flex flex-col items-center justify-center flex-1 h-full text-stone-500"
+        >
+          {isAdmin ? (
+            <div className="bg-amber-500 text-stone-950 p-2 rounded-full -mt-5 shadow-lg border border-stone-900">
+              <PlusSquare size={16} />
+            </div>
+          ) : (
+            <Menu size={18} />
+          )}
+          <span className="text-[9px] mt-1 font-bold">{isAdmin ? 'Add Order' : 'More...'}</span>
+        </button>
+      </nav>
+    </>
+  );
+}
