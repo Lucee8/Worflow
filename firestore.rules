@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper: Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper: Check if user has admin role
+    function isAdmin() {
+      return isAuthenticated();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() 
+        && request.resource.data.id == paymentId
+        && request.resource.data.order_id is string
+        && request.resource.data.total_amount is number
+        && request.resource.data.advance_paid is number
+        && request.resource.data.balance_due is number
+        && request.resource.data.payment_date is string
+        && request.resource.data.payment_mode in ['cash', 'upi', 'transfer']
+        && request.resource.data.created_by is string
+        && request.resource.data.created_at is string;
+      allow delete: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "entities": {
+    "payment": {
+      "title": "Payment",
+      "description": "Financial transaction ledger recording customer advance payments against structured order volumes",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique payment record UUID identifier"
+        },
+        "order_id": {
+          "type": "string",
+          "description": "Reference ID linking to the associated client furniture order"
+        },
+        "total_amount": {
+          "type": "number",
+          "description": "The complete gross pricing valuation agreed with client"
+        },
+        "advance_paid": {
+          "type": "number",
+          "description": "The initial prepayments received block"
+        },
+        "balance_due": {
+          "type": "number",
+          "description": "Outstanding amount calculated automatically as total minus advance"
+        },
+        "payment_date": {
+          "type": "string",
+          "description": "Vetted date stamp of received payment"
+        },
+        "payment_mode": {
+          "type": "string",
+          "enum": ["cash", "upi", "transfer"],
+          "description": "Method of fund transfer received"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Administrative notes and reference serials of the payments"
+        },
+        "created_by": {
+          "type": "string",
+          "description": "Admin staff key who logged payments record"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "UTC timestamp of payments ledger creation"
+        }
+      },
+      "required": [
+        "id",
+        "order_id",
+        "total_amount",
+        "advance_paid",
+        "balance_due",
+        "payment_date",
+        "payment_mode",
+        "created_by",
+        "created_at"
+      ]
+    }
+  },
+  "firestore": {
+    "/payments/{paymentId}": {
+      "schema": "payment",
+      "description": "Ledger directory storing advance deposit balances and structural prices per order"
+    }
+  }
+}

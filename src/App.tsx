@@ -6,7 +6,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { loadState, saveState, AppState } from './db/store';
-import { User, Customer, Order, StatusLog } from './types';
+import { User, Customer, Order, StatusLog, Payment } from './types';
 
 // Component imports
 import SimulationHUD from './components/SimulationHUD';
@@ -20,6 +20,7 @@ import CalendarTab from './components/CalendarTab';
 import UsersTab from './components/UsersTab';
 import WorkerDashboard from './components/WorkerDashboard';
 import NotificationCenter from './components/NotificationCenter';
+import CustomersTab from './components/CustomersTab';
 
 // Utility icons
 import { HardHat, SlidersHorizontal, Settings as SettingsIcon, ShieldCheck } from 'lucide-react';
@@ -125,6 +126,20 @@ export default function App() {
       ...db,
       orders: freshOrders,
       statusLogs: freshLogs,
+    });
+  };
+
+  const handleAddPayment = (payment: Payment) => {
+    const existsIdx = db.payments.findIndex(p => p.id === payment.id || p.order_id === payment.order_id);
+    let updatedPayments = [...db.payments];
+    if (existsIdx > -1) {
+      updatedPayments[existsIdx] = payment;
+    } else {
+      updatedPayments.push(payment);
+    }
+    updateDbState({
+      ...db,
+      payments: updatedPayments,
     });
   };
 
@@ -240,6 +255,7 @@ export default function App() {
                 orders={db.orders}
                 users={db.users}
                 customers={db.customers}
+                payments={db.payments}
                 onNavigateTab={(tab) => setCurrentTab(tab)}
                 onViewOrder={handleViewOrder}
               />
@@ -258,9 +274,28 @@ export default function App() {
                 orders={db.orders}
                 users={db.users}
                 customers={db.customers}
+                payments={db.payments}
                 onViewOrder={handleViewOrder}
                 onNavigateTab={(tab) => setCurrentTab(tab)}
                 isAdmin={isAdmin}
+              />
+            </motion.div>
+          )}
+
+          {/* TAB: CUSTOMER PROFILES PIPELINES & HISTORY (Admin Only) */}
+          {currentTab === 'customers' && isAdmin && (
+            <motion.div
+              key="customers"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+            >
+              <CustomersTab
+                orders={db.orders}
+                customers={db.customers}
+                payments={db.payments}
+                users={db.users}
+                onViewOrder={handleViewOrder}
               />
             </motion.div>
           )}
@@ -448,11 +483,13 @@ export default function App() {
                 users={db.users}
                 customers={db.customers}
                 statusLogs={db.statusLogs}
+                payments={db.payments}
                 onBack={() => {
                   setSelectedOrderId(null);
                   setCurrentTab(isAdmin ? 'orders' : 'my_orders');
                 }}
                 onUpdateOrder={handleUpdateOrder}
+                onAddPayment={handleAddPayment}
                 currentUser={currentUser}
               />
             </motion.div>

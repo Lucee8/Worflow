@@ -562,6 +562,69 @@ const SEED_MATERIALS: Material[] = [
   { id: 'mat_adhesive', name: 'Premium Wood Adhesive', unit: 'litre', qty_in_stock: 90, reorder_level: 20, last_updated: '2026-05-28T11:00:00Z', updated_by: 'user_admin' },
 ];
 
+const SEED_PAYMENTS: Payment[] = [
+  {
+    id: 'pay_1',
+    order_id: 'order_1',
+    total_amount: 120000,
+    advance_paid: 120000,
+    balance_due: 0,
+    payment_date: '2026-05-18',
+    payment_mode: 'transfer',
+    notes: 'Base payment and full settlement on wardrobe confirmation.',
+    created_by: 'user_admin',
+    created_at: '2026-05-18T10:30:00Z',
+  },
+  {
+    id: 'pay_2',
+    order_id: 'order_2',
+    total_amount: 85000,
+    advance_paid: 50000,
+    balance_due: 35000,
+    payment_date: '2026-05-19',
+    payment_mode: 'upi',
+    notes: 'Advance booking registered on UPI GPay transfer. Balance remaining on delivery.',
+    created_by: 'user_admin',
+    created_at: '2026-05-19T11:45:00Z',
+  },
+  {
+    id: 'pay_3',
+    order_id: 'order_3',
+    total_amount: 45000,
+    advance_paid: 0,
+    balance_due: 45000,
+    payment_date: '2026-05-20',
+    payment_mode: 'cash',
+    notes: 'Awaiting cash deposit clear on carpenter workbench dispatch.',
+    created_by: 'user_admin',
+    created_at: '2026-05-20T12:00:00Z',
+  },
+  {
+    id: 'pay_4',
+    order_id: 'order_4',
+    total_amount: 65000,
+    advance_paid: 65000,
+    balance_due: 0,
+    payment_date: '2026-05-21',
+    payment_mode: 'transfer',
+    notes: 'NetBanking payment completed. Order is fully cleared from dues.',
+    created_by: 'user_admin',
+    created_at: '2026-05-21T13:10:00Z',
+  },
+  {
+    id: 'pay_5',
+    order_id: 'order_5',
+    total_amount: 150000,
+    advance_paid: 90000,
+    balance_due: 60000,
+    payment_date: '2026-05-22',
+    payment_mode: 'upi',
+    notes: '60% advance paid for modular kitchen drawers layout. 40% pending.',
+    created_by: 'user_admin',
+    created_at: '2026-05-22T14:40:00Z',
+  }
+];
+
 export interface AppState {
   users: User[];
   customers: Customer[];
@@ -578,7 +641,11 @@ export function loadState(): AppState {
     if (data) {
       const parsed = JSON.parse(data);
       if (parsed.users && parsed.orders && parsed.customers) {
-        return parsed;
+        return {
+          ...parsed,
+          payments: parsed.payments && parsed.payments.length > 0 ? parsed.payments : SEED_PAYMENTS,
+          materials: parsed.materials || SEED_MATERIALS,
+        };
       }
     }
   } catch (error) {
@@ -592,7 +659,7 @@ export function loadState(): AppState {
     orders: SEED_ORDERS,
     statusLogs: SEED_LOGS,
     materials: SEED_MATERIALS,
-    payments: [],
+    payments: SEED_PAYMENTS,
     currentUser: SEED_USERS[0], // Start as Admin for convenience, login allows changes
   };
   saveState(state);

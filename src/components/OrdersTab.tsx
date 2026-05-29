@@ -4,13 +4,14 @@
  */
 
 import React from 'react';
-import { Order, User, Customer, OrderStage, OrderPriority } from '../types';
-import { Search, Eye, PlusCircle, AlertCircle, ChevronLeft, ChevronRight, Calendar, SlidersHorizontal } from 'lucide-react';
+import { Order, User, Customer, OrderStage, OrderPriority, Payment } from '../types';
+import { Search, Eye, PlusCircle, AlertCircle, ChevronLeft, ChevronRight, Calendar, SlidersHorizontal, CreditCard } from 'lucide-react';
 
 interface OrdersTabProps {
   orders: Order[];
   users: User[];
   customers: Customer[];
+  payments: Payment[];
   onViewOrder: (orderId: string) => void;
   onNavigateTab: (tabId: string) => void;
   isAdmin: boolean;
@@ -20,6 +21,7 @@ export default function OrdersTab({
   orders,
   users,
   customers,
+  payments = [],
   onViewOrder,
   onNavigateTab,
   isAdmin,
@@ -174,6 +176,7 @@ export default function OrdersTab({
                 <th className="py-3 px-4">Assigned To</th>
                 <th className="py-3 px-4 font-sans font-bold">Delivery Date</th>
                 <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4">Payment</th>
                 <th className="py-3 px-4 text-right">Action</th>
               </tr>
             </thead>
@@ -236,6 +239,30 @@ export default function OrdersTab({
                           </span>
                         )}
                       </td>
+                      <td className="py-3.5 px-4">
+                        {(() => {
+                          const p = payments.find((pay) => pay.order_id === order.id);
+                          if (!p) {
+                            return (
+                              <span className="inline-flex items-center bg-rose-50 border border-rose-200 text-rose-700 text-[9px] font-black uppercase px-2 py-0.5 rounded-md">
+                                Unpaid
+                              </span>
+                            );
+                          }
+                          if (p.balance_due <= 0) {
+                            return (
+                              <span className="inline-flex items-center bg-green-50 border border-green-200 text-green-700 text-[9px] font-black uppercase px-2 py-0.5 rounded-md">
+                                Paid
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className="inline-flex items-center bg-amber-50 border border-amber-200 text-amber-600 text-[9px] font-black uppercase px-2 py-0.5 rounded-md" title={`Due: ₹${p.balance_due}`}>
+                              Partial
+                            </span>
+                          );
+                        })()}
+                      </td>
                       <td className="py-3.5 px-4 text-right">
                         <button
                           onClick={() => onViewOrder(order.id)}
@@ -250,7 +277,7 @@ export default function OrdersTab({
                 })
               ) : (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center">
+                  <td colSpan={9} className="py-12 text-center">
                     <div className="flex flex-col items-center justify-center text-stone-400">
                       <SlidersHorizontal size={24} className="mb-2 text-stone-300" />
                       <p className="text-xs font-bold font-sans">No Orders Found</p>

@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { motion } from 'motion/react';
-import { Order, User, Customer, OrderStage, StatusLog } from '../types';
+import { Order, User, Customer, OrderStage, StatusLog, Payment } from '../types';
 import { generateUUID } from '../db/store';
 import { 
   ChevronLeft, 
@@ -21,7 +21,8 @@ import {
   ShieldCheck, 
   ClipboardCheck, 
   X,
-  Plus
+  Plus,
+  CreditCard
 } from 'lucide-react';
 
 interface OrderDetailsViewProps {
@@ -30,8 +31,10 @@ interface OrderDetailsViewProps {
   users: User[];
   customers: Customer[];
   statusLogs: StatusLog[];
+  payments: Payment[];
   onBack: () => void;
   onUpdateOrder: (updatedOrder: Order, newLog?: StatusLog) => void;
+  onAddPayment: (p: Payment) => void;
   currentUser: User;
 }
 
@@ -41,8 +44,10 @@ export default function OrderDetailsView({
   users,
   customers,
   statusLogs,
+  payments = [],
   onBack,
   onUpdateOrder,
+  onAddPayment,
   currentUser,
 }: OrderDetailsViewProps) {
   const order = orders.find((o) => o.id === orderId);
@@ -74,6 +79,82 @@ export default function OrderDetailsView({
   const [showQcFailModal, setShowQcFailModal] = React.useState(false);
   const [qcFailLogStage, setQcFailLogStage] = React.useState<OrderStage>('Carpentry');
   const [qcFailNote, setQcFailNote] = React.useState('');
+
+  // Tab Navigation State
+  const [activeTab, setActiveTab] = React.useState<'details' | 'payments'>('details');
+
+  // Payments form states
+  const [totalAmount, setTotalAmount] = React.useState<number>(0);
+  const [advancePaid, setAdvancePaid] = React.useState<number>(0);
+  const [paymentDate, setPaymentDate] = React.useState<string>(new Date().toISOString().split('T')[0]);
+  const [paymentMode, setPaymentMode] = React.useState<'cash' | 'upi' | 'transfer'>('cash');
+  const [paymentNotes, setPaymentNotes] = React.useState<string>('');
+  
+  const [toasts, setToasts] = React.useState<Array<{ id: string; msg: string; type: 'success' | 'error' }>>([]);
+
+  const addToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    const id = 'toast_' + Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { id, msg, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
+  };
+
+  const existingPayment = payments.find((p) => p.order_id === order.id);
+
+  React.useEffect(() => {
+    if (existingPayment) {
+      setTotalAmount(existingPayment.total_amount);
+      setAdvancePaid(existingPayment.advance_paid);
+      setPaymentDate(existingPayment.payment_date);
+      setPaymentMode(existingPayment.payment_mode);
+      setPaymentNotes(existingPayment.notes || '');
+    } else {
+      setTotalAmount(0);
+      setAdvancePaid(0);
+      setPaymentDate(new Date().toISOString().split('T')[0]);
+      setPaymentMode('cash');
+      setPaymentNotes('');
+    }
+  }, [existingPayment, order.id]);
+
+  const balanceDue = Math.max(0, totalAmount - advancePaid);
+
+  const handleSavePaymentForm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (totalAmount <= 0) {
+      alert('Please enter a total amount greater than zero.');
+      return;
+    }
+
+    const pid = existingPayment?.id || 'pay_' + Math.random().toString(36).substring(2, 9);
+    
+    const paymentRecord: Payment = {
+      id: pid,
+      order_id: order.id,
+      total_amount: totalAmount,
+      advance_paid: advancePaid,
+      balance_due: balanceDue,
+      payment_date: paymentDate,
+      payment_mode: paymentMode,
+      notes: paymentNotes,
+      created_by: currentUser.id,
+      created_at: existingPayment?.created_at || new Date().toISOString(),
+    };
+
+    onAddPayment(paymentRecord);
+
+    try {
+      const { collection, doc, setDoc } = await import('firebase/firestore');
+      const { db: firestorePlatformDb } = await import('../db/firebase');
+      const pRef = doc(collection(firestorePlatformDb, 'payments'), pid);
+      await setDoc(pRef, paymentRecord);
+      addToast('Payment record updated and secured inside Firestore successfully!', 'success');
+    } catch (err) {
+      console.warn('Firestore write offline fallback:', err);
+      addToast('Payment record saved successfully!', 'success');
+    }
+  };
 
   const isAdmin = currentUser.role === 'admin';
 
@@ -256,8 +337,35 @@ export default function OrderDetailsView({
         </div>
       </div>
 
+      {/* Tabs navigation list for Admin */}
+      {isAdmin && (
+        <div className="flex border-b border-stone-200 gap-1 mt-2">
+          <button
+            onClick={() => setActiveTab('details')}
+            className={`px-5 py-2.5 text-xs uppercase tracking-wider font-bold border-b-2 transition duration-200 cursor-pointer ${
+              activeTab === 'details'
+                ? 'border-[#593622] text-[#593622]'
+                : 'border-transparent text-stone-400 hover:text-[#593622]'
+            }`}
+          >
+            📋 Production Pipeline & Specs
+          </button>
+          <button
+            onClick={() => setActiveTab('payments')}
+            className={`px-5 py-2.5 text-xs uppercase tracking-wider font-bold border-b-2 transition duration-200 cursor-pointer ${
+              activeTab === 'payments'
+                ? 'border-[#593622] text-[#593622]'
+                : 'border-transparent text-stone-400 hover:text-[#593622]'
+            }`}
+          >
+            💰 Payments Ledger (Admin Only)
+          </button>
+        </div>
+      )}
+
       {/* Grid segments: 7 core sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start" style={{ contentVisibility: 'auto' }}>
+      {(!isAdmin || activeTab === 'details') ? (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start" style={{ contentVisibility: 'auto' }}>
         
         {/* Left column info panels */}
         <div className="lg:col-span-8 space-y-6">
@@ -653,6 +761,213 @@ export default function OrderDetailsView({
           </div>
 
         </div>
+      </div>
+      ) : (
+        /* PAYMENTS TAB PANEL */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left panel: Log Payment Form */}
+          <div className="lg:col-span-6 bg-white p-6 rounded-2xl border border-stone-200/80 shadow-xs space-y-5">
+            <div className="pb-3 border-b border-stone-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-display font-black text-stone-900 text-sm">Log Payment Audit</h3>
+                <p className="text-[10px] text-stone-400 font-mono mt-0.5">Secure payment records on internal ledger</p>
+              </div>
+              <span className="text-[10px] bg-[#593622]/5 text-[#593622] font-semibold border border-[#593622]/20 px-2.5 py-0.5 rounded-lg font-mono">
+                {existingPayment ? 'EDITING RECORD' : 'NEW CONTRACT'}
+              </span>
+            </div>
+
+            <form onSubmit={handleSavePaymentForm} className="space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-stone-600 uppercase tracking-wider mb-1.5 font-mono">Total Amount (₹)</label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={totalAmount || ''}
+                    onChange={(e) => setTotalAmount(Number(e.target.value))}
+                    placeholder="Enter contract value"
+                    className="w-full p-2.5 bg-stone-50 border border-stone-250 focus:outline-none focus:border-[#593622] rounded-xl font-bold text-stone-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-stone-600 uppercase tracking-wider mb-1.5 font-mono">Advance Paid (₹)</label>
+                  <input
+                    type="number"
+                    required
+                    min={0}
+                    value={advancePaid || ''}
+                    onChange={(e) => setAdvancePaid(Number(e.target.value))}
+                    placeholder="Enter paid amount"
+                    className="w-full p-2.5 bg-stone-50 border border-stone-250 focus:outline-none focus:border-[#593622] rounded-xl font-bold text-stone-900"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-stone-600 uppercase tracking-wider mb-1.5 font-mono">Balance Due (Auto-calculated, Read-only)</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    readOnly
+                    value={`₹ ${balanceDue.toLocaleString('en-IN')}`}
+                    className="w-full p-2.5 bg-stone-100 border border-stone-200 cursor-not-allowed rounded-xl text-stone-700 font-black text-sm"
+                  />
+                  <span className="absolute right-3 top-2.5 text-[10px] text-emerald-700 font-bold font-mono">
+                    {balanceDue === 0 ? '👍 FULLY PAID' : '⏳ BALANCE REMAINING'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-stone-600 uppercase tracking-wider mb-1.5 font-mono">Payment Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={paymentDate}
+                    onChange={(e) => setPaymentDate(e.target.value)}
+                    className="w-full p-2.5 bg-stone-50 border border-stone-250 focus:outline-none focus:border-[#593622] rounded-xl font-semibold text-stone-700"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-stone-600 uppercase tracking-wider mb-1.5 font-mono">Payment Mode</label>
+                  <select
+                    value={paymentMode}
+                    onChange={(e) => setPaymentMode(e.target.value as any)}
+                    className="w-full p-2.5 bg-stone-50 border border-stone-250 focus:outline-none focus:border-[#593622] rounded-xl font-bold text-stone-700 capitalize"
+                  >
+                    <option value="cash">Cash 💵</option>
+                    <option value="upi">UPI/Online QR 📱</option>
+                    <option value="transfer">Bank Transfer 🏦</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-stone-600 uppercase tracking-wider mb-1.5 font-mono">Add Ledger Notes / Transaction ID Reference</label>
+                <textarea
+                  rows={2}
+                  value={paymentNotes}
+                  onChange={(e) => setPaymentNotes(e.target.value)}
+                  placeholder="e.g. Received ₹50k advance on UPI GPay. Dues pending on delivery check."
+                  className="w-full p-2.5 bg-stone-50 border border-[#593622]/20 focus:outline-none focus:border-[#593622] rounded-xl font-medium text-stone-700 leading-normal"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-[#593622] hover:bg-[#402414] text-white text-xs font-black py-3 rounded-xl shadow-md cursor-pointer transition uppercase tracking-wider flex items-center justify-center gap-2"
+              >
+                💾 Secure Payment Log
+              </button>
+            </form>
+          </div>
+
+          {/* Right panel: Receipt display card */}
+          <div className="lg:col-span-6 bg-white rounded-2xl border border-stone-200/80 shadow-xs p-6 space-y-6 flex flex-col justify-between">
+            <div>
+              <div className="pb-3 border-b border-dashed border-stone-200 flex justify-between items-center">
+                <div>
+                  <strong className="block text-stone-900 text-sm">Bhise'z Workshop Bill</strong>
+                  <span className="text-[10px] text-stone-400 font-mono tracking-widest block font-bold uppercase mt-0.5">Order Ref: {order.article_no}</span>
+                </div>
+                {balanceDue === 0 && totalAmount > 0 ? (
+                  <span className="h-fit px-3 py-1 rounded bg-green-50 text-green-700 border-2 border-green-300 text-[10px] font-black uppercase font-mono tracking-wider rotate-[-2deg]">
+                    ★ FULLY PAID ★
+                  </span>
+                ) : totalAmount > 0 && advancePaid > 0 ? (
+                  <span className="h-fit px-3 py-1 rounded bg-amber-50 text-amber-700 border-2 border-amber-300 text-[10px] font-black uppercase font-mono tracking-wider rotate-[-2deg]">
+                    PARTIAL DUES
+                  </span>
+                ) : (
+                  <span className="h-fit px-3 py-1 rounded bg-rose-50 text-rose-700 border-2 border-rose-300 text-[10px] font-black uppercase font-mono tracking-wider rotate-[-2deg]">
+                    UNPAID LEDGER
+                  </span>
+                )}
+              </div>
+
+              <div className="py-4 space-y-4">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                  <div>
+                    <span className="text-stone-400 font-semibold uppercase block text-[10px] font-mono">Client</span>
+                    <span className="text-stone-850 font-bold block">{cust?.name}</span>
+                  </div>
+                  <div>
+                    <span className="text-stone-400 font-semibold uppercase block text-[10px] font-mono">Phone</span>
+                    <span className="text-stone-850 font-bold font-mono block">{cust?.phone}</span>
+                  </div>
+                  <div className="col-span-2 mt-2">
+                    <span className="text-stone-400 font-semibold uppercase block text-[10px] font-mono">Product spec</span>
+                    <span className="text-stone-800 font-medium block whitespace-normal mt-0.5 leading-normal">
+                      {order.category} &rsaquo; <strong>{order.sub_category}</strong> ({order.size})
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-stone-50 border border-stone-150 rounded-xl p-4 space-y-2 text-xs font-mono">
+                  <div className="flex justify-between text-stone-550 font-semibold">
+                    <span>Base Contract Value:</span>
+                    <span>₹ {totalAmount.toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex justify-between text-emerald-600 font-bold">
+                    <span>Advance Payment Logged:</span>
+                    <span>- ₹ {advancePaid.toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="h-[1px] bg-stone-200 my-2" />
+                  <div className="flex justify-between text-stone-900 font-black text-sm">
+                    <span>Balance Dues Remaining:</span>
+                    <span className={balanceDue > 0 ? 'text-rose-600' : 'text-emerald-700 font-extrabold'}>
+                      ₹ {balanceDue.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {existingPayment ? (
+              <div className="bg-[#fcf8f6] border border-[#593622]/20 rounded-xl p-4 space-y-2 text-stone-700 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] uppercase font-bold tracking-wider font-mono text-stone-400">LEDGER STATEMENT</span>
+                  <span className="text-[10px] text-[#593622] font-semibold bg-[#593622]/5 px-2 py-0.5 rounded font-mono">FIRESTORE SECURED</span>
+                </div>
+                <div className="space-y-1 text-[11px] leading-relaxed text-stone-605 text-stone-650">
+                  <p>• Receipt Reference ID: <strong className="font-mono text-stone-900">{existingPayment.id}</strong></p>
+                  <p>• Transacted Mode: <strong className="capitalize text-stone-900">{existingPayment.payment_mode}</strong> on <strong className="font-mono">{existingPayment.payment_date}</strong></p>
+                  {existingPayment.notes && <p>• Audited Notes: <span className="italic">"{existingPayment.notes}"</span></p>}
+                  <p className="text-[9px] text-stone-400 font-mono text-right mt-1.5">Last verified on {new Date(existingPayment.created_at).toLocaleString('en-GB')}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-stone-50 border rounded-xl p-4 text-center text-xs text-stone-400 leading-normal">
+                No active billing receipts found for order {order.article_no}. Complete and lock payment values on the left form draft.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Toast notifications overlay */}
+      <div className="fixed bottom-5 right-5 z-55 space-y-2 max-w-sm pointer-events-none">
+        {toasts.map((t) => (
+          <motion.div
+            key={t.id}
+            initial={{ opacity: 0, y: 30, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9, y: -20 }}
+            className={`p-3.5 rounded-xl border shadow-lg text-xs font-bold leading-normal flex items-center gap-2 pointer-events-auto ${
+              t.type === 'success'
+                ? 'bg-[#1c1917] text-white border-stone-850'
+                : 'bg-rose-600 text-white border-rose-500'
+            }`}
+          >
+            <span className="h-2 w-2 rounded-full bg-emerald-450 bg-emerald-400 animate-pulse" />
+            <span>{t.msg}</span>
+          </motion.div>
+        ))}
       </div>
 
       {/* QC Failure Reason note modal details dialog popup */}

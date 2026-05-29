@@ -19,6 +19,7 @@ import {
   HardHat,
   Menu,
   X,
+  Contact,
 } from 'lucide-react';
 import React from 'react';
 
@@ -45,6 +46,7 @@ export default function Sidebar({
     ? [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'orders', label: 'Orders', icon: ClipboardList },
+        { id: 'customers', label: 'Customers', icon: Contact },
         { id: 'create_order', label: 'Create Order', icon: PlusSquare },
         { id: 'calendar', label: 'Calendar', icon: Calendar },
         { id: 'users', label: 'Users', icon: Users },

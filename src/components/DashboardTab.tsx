@@ -5,13 +5,14 @@
 
 import React from 'react';
 import { motion } from 'motion/react';
-import { Order, User, Customer, OrderStage } from '../types';
-import { Eye, Clock, CheckCircle2, AlertTriangle, Briefcase, CalendarCheck, ArrowUpRight } from 'lucide-react';
+import { Order, User, Customer, OrderStage, Payment } from '../types';
+import { Eye, Clock, CheckCircle2, AlertTriangle, Briefcase, CalendarCheck, ArrowUpRight, PiggyBank, CreditCard, ShieldCheck } from 'lucide-react';
 
 interface DashboardTabProps {
   orders: Order[];
   users: User[];
   customers: Customer[];
+  payments: Payment[];
   onViewOrder: (orderId: string) => void;
   onNavigateTab: (tabId: string) => void;
 }
@@ -20,6 +21,7 @@ export default function DashboardTab({
   orders,
   users,
   customers,
+  payments,
   onViewOrder,
   onNavigateTab,
 }: DashboardTabProps) {
@@ -28,6 +30,14 @@ export default function DashboardTab({
   const inProgressCount = orders.filter((o) => !['Ready to Dispatch', 'Dispatched'].includes(o.current_status)).length;
   const completedCount = orders.filter((o) => ['Ready to Dispatch', 'Dispatched'].includes(o.current_status)).length;
   const delayedCount = orders.filter((o) => o.is_delayed).length;
+
+  // Payments calculations
+  const totalOutstandingBalance = payments.reduce((sum, p) => sum + p.balance_due, 0);
+  const fullyPaidCount = orders.filter(o => {
+    const p = payments.find(pay => pay.order_id === o.id);
+    return p !== undefined && p.balance_due <= 0;
+  }).length;
+  const partialOrUnpaidCount = orders.length - fullyPaidCount;
 
   // Pie chart calculation
   const getStageCount = (stage: OrderStage) => orders.filter((o) => o.current_status === stage).length;
@@ -170,6 +180,72 @@ export default function DashboardTab({
             <AlertTriangle size={16} className="sm:w-5 sm:h-5 text-rose-600" />
           </div>
         </motion.div>
+      </div>
+
+      {/* Financial & Payment Overview Row */}
+      <div className="space-y-3.5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-stone-500 font-mono">Financial Ledger Overview</h2>
+          <span className="text-[10px] bg-[#593622]/5 text-[#593622] font-semibold border border-[#593622]/20 px-2.5 py-0.5 rounded-lg font-mono">ADMIN PRIVILEGED ACCESS</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          {/* Total Outstanding Balance Card */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.22, type: 'spring', stiffness: 260, damping: 20 }}
+            whileHover={{ scale: 1.025, y: -2, borderColor: '#593622' }}
+            className="bg-white p-4 rounded-xl shadow-xs border border-stone-200/80 transition-all flex items-center justify-between gap-3 cursor-pointer"
+            onClick={() => onNavigateTab('orders')}
+          >
+            <div>
+              <span className="text-[10px] uppercase font-mono tracking-wider text-stone-400 block font-bold">Total Outstanding Balance</span>
+              <strong className="text-xl sm:text-2xl font-black text-rose-600 font-display block mt-1">₹ {totalOutstandingBalance.toLocaleString('en-IN')}</strong>
+              <span className="text-[10px] text-stone-550 block mt-1.5 font-medium leading-tight">Accumulated balance amounts across all orders</span>
+            </div>
+            <div className="bg-rose-50 text-rose-700 p-2.5 rounded-xl border border-rose-200/40 shrink-0">
+              <CreditCard size={18} />
+            </div>
+          </motion.div>
+
+          {/* Fully Paid Orders Card */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.26, type: 'spring', stiffness: 260, damping: 20 }}
+            whileHover={{ scale: 1.025, y: -2, borderColor: '#16a34a' }}
+            className="bg-white p-4 rounded-xl shadow-xs border border-stone-200/80 transition-all flex items-center justify-between gap-3 cursor-pointer"
+            onClick={() => onNavigateTab('orders')}
+          >
+            <div>
+              <span className="text-[10px] uppercase font-mono tracking-wider text-stone-400 block font-bold">Fully Paid Orders</span>
+              <strong className="text-xl sm:text-2xl font-black text-emerald-600 font-display block mt-1">{fullyPaidCount} <span className="text-stone-450 text-xs font-bold font-sans">/ {orders.length}</span></strong>
+              <span className="text-[10px] text-stone-550 block mt-1.5 font-medium leading-tight">Orders that are completely paid off</span>
+            </div>
+            <div className="bg-emerald-50 text-emerald-700 p-2.5 rounded-xl border border-emerald-200/40 shrink-0">
+              <CheckCircle2 size={18} />
+            </div>
+          </motion.div>
+
+          {/* Partial / Unpaid Orders Card */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.3, type: 'spring', stiffness: 260, damping: 20 }}
+            whileHover={{ scale: 1.025, y: -2, borderColor: '#d97706' }}
+            className="bg-white p-4 rounded-xl shadow-xs border border-stone-200/80 transition-all flex items-center justify-between gap-3 cursor-pointer"
+            onClick={() => onNavigateTab('orders')}
+          >
+            <div>
+              <span className="text-[10px] uppercase font-mono tracking-wider text-stone-400 block font-bold">Partial / Unpaid Orders</span>
+              <strong className="text-xl sm:text-2xl font-black text-amber-700 font-display block mt-1">{partialOrUnpaidCount} <span className="text-stone-450 text-xs font-bold font-sans">remaining</span></strong>
+              <span className="text-[10px] text-stone-550 block mt-1.5 font-medium leading-tight">Orders with outstanding balance dues</span>
+            </div>
+            <div className="bg-amber-50 text-amber-700 p-2.5 rounded-xl border border-amber-200/40 shrink-0">
+              <Clock size={18} />
+            </div>
+          </motion.div>
+        </div>
       </div>
 
       {/* Main Charts area */}
