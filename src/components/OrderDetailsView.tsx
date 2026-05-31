@@ -662,6 +662,11 @@ export default function OrderDetailsView({
                 <div className="flex-1 min-w-0">
                   <span className="text-[10px] text-stone-450 uppercase font-mono block font-bold">CARPENTRY</span>
                   <strong className="text-stone-850 text-xs block truncate">{carpenter?.name || 'Not Delegate yet'}</strong>
+                  {order.carpenter_labour_rate !== undefined && (
+                    <span className="text-[10px] text-stone-500 block mt-0.5">
+                      Labour Rate: <strong className="text-amber-800 font-black">₹{order.carpenter_labour_rate}</strong>
+                    </span>
+                  )}
                   {carpenter?.phone && (
                     <a href={`tel:${carpenter.phone}`} className="inline-flex items-center gap-1 text-[10px] text-amber-700 hover:underline font-bold mt-1">
                       <Phone size={10} /> Call ({carpenter.phone})
@@ -678,6 +683,11 @@ export default function OrderDetailsView({
                 <div className="flex-1 min-w-0">
                   <span className="text-[10px] text-[#0d9488]/80 uppercase font-mono block font-bold">POLISH / FINISH</span>
                   <strong className="text-stone-850 text-xs block truncate">{polish?.name || 'Delegates during QC 1 check'}</strong>
+                  {order.polish_labour_rate !== undefined && (
+                    <span className="text-[10px] text-stone-500 block mt-0.5">
+                      Labour Rate: <strong className="text-teal-800 font-black">₹{order.polish_labour_rate}</strong>
+                    </span>
+                  )}
                   {polish?.phone && (
                     <a href={`tel:${polish.phone}`} className="inline-flex items-center gap-1 text-[10px] text-amber-700 hover:underline font-bold mt-1">
                       <Phone size={10} /> Call ({polish.phone})

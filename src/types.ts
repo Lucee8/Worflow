@@ -57,7 +57,9 @@ export interface Order {
   color_shade: string; // e.g. Walnut, Teak, Charcoal
   no_of_units: number;
   carpenter_id: string; // FK to users (carpenter)
+  carpenter_labour_rate?: number;
   polish_person_id?: string; // FK to users (polish_person)
+  polish_labour_rate?: number;
   current_status: OrderStage;
   is_delayed: boolean;
   priority: OrderPriority;

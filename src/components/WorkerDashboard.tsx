@@ -40,14 +40,18 @@ export default function WorkerDashboard({
   const [activeOrder, setActiveOrder] = React.useState<Order | null>(null);
 
   // Form States for updating status (Section 5 and 6)
-  const [progressStatus, setProgressStatus] = React.useState<'in_progress' | 'completed'>('in_progress');
+  const [progressStatus, setProgressStatus] = React.useState<string>('in_progress');
   const [updateNotes, setUpdateNotes] = React.useState('');
   const [inProgressFiles, setInProgressFiles] = React.useState<string[]>([]);
   const [simulateUrlInput, setSimulateUrlInput] = React.useState('');
 
   const handleOpenUpdate = (ord: Order) => {
     setActiveOrder(ord);
-    setProgressStatus(ord.current_status === myStage ? 'in_progress' : 'completed');
+    if (isCarpenter) {
+      setProgressStatus(ord.current_status === myStage ? 'wood_procurement' : 'completed');
+    } else {
+      setProgressStatus(ord.current_status === myStage ? 'in_progress' : 'completed');
+    }
     setUpdateNotes('');
     setInProgressFiles(ord.images.filter(img => img.type === 'In-Progress').map(img => img.url));
   };
@@ -74,6 +78,14 @@ export default function WorkerDashboard({
       ? (isCarpenter ? 'QC Check 1' : 'QC Check 2')
       : myStage;
 
+    const statusLabel = progressStatus === 'completed'
+      ? 'Completed'
+      : progressStatus === 'wood_procurement'
+      ? 'Wood Procurement'
+      : progressStatus === 'under_carpentry'
+      ? 'Under Carpentry'
+      : 'In Progress';
+
     const log: StatusLog = {
       id: 'log_' + generateUUID().split('-')[0],
       order_id: activeOrder.id,
@@ -82,7 +94,7 @@ export default function WorkerDashboard({
       changed_by_name: currentUser.name,
       changed_by_role: currentUser.role,
       timestamp: new Date().toISOString(),
-      note: updateNotes || `${currentUser.name} logged progress update: status set to "${progressStatus === 'completed' ? 'Completed' : 'In Progress'}".`,
+      note: updateNotes || `${currentUser.name} logged progress update: status set to "${statusLabel}".`,
     };
 
     // Reconstruct order images with newly uploaded list
@@ -161,26 +173,73 @@ export default function WorkerDashboard({
               {/* Radios inputs matching completed states */}
               <div className="space-y-2.5">
                 <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider font-sans">Progress Status *</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label
-                    className={`border rounded-xl p-3.5 flex items-center gap-3 cursor-pointer transition ${
-                      progressStatus === 'in_progress'
-                        ? 'bg-amber-50/40 border-amber-500 ring-2 ring-amber-500/10 text-amber-900'
-                        : 'bg-stone-50 border-stone-200 text-stone-550'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="progressRadios"
-                      checked={progressStatus === 'in_progress'}
-                      onChange={() => setProgressStatus('in_progress')}
-                      className="text-amber-700 focus:ring-amber-500 font-bold shrink-0 cursor-pointer"
-                    />
-                    <div>
-                      <strong className="text-xs block font-sans">In Progress</strong>
-                      <span className="text-[10px] text-stone-400 font-medium font-sans">Continue work on active cabinetry floor cutting</span>
-                    </div>
-                  </label>
+                <div className={`grid grid-cols-1 ${isCarpenter ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-3`}>
+                  {isCarpenter ? (
+                    <>
+                      {/* Wood procurement tab */}
+                      <label
+                        className={`border rounded-xl p-3.5 flex items-center gap-3 cursor-pointer transition ${
+                          progressStatus === 'wood_procurement'
+                            ? 'bg-amber-50/40 border-amber-500 ring-2 ring-amber-500/10 text-amber-900'
+                            : 'bg-stone-50 border-stone-200 text-stone-550'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="progressRadios"
+                          checked={progressStatus === 'wood_procurement'}
+                          onChange={() => setProgressStatus('wood_procurement')}
+                          className="text-amber-700 focus:ring-amber-500 font-bold shrink-0 cursor-pointer"
+                        />
+                        <div>
+                          <strong className="text-xs block font-sans">Wood procurement</strong>
+                          <span className="text-[10px] text-stone-400 font-medium font-sans">Log materials and start wood preparation work</span>
+                        </div>
+                      </label>
+
+                      {/* Under Carpentry tab */}
+                      <label
+                        className={`border rounded-xl p-3.5 flex items-center gap-3 cursor-pointer transition ${
+                          progressStatus === 'under_carpentry'
+                            ? 'bg-amber-50/40 border-amber-500 ring-2 ring-amber-500/10 text-amber-900'
+                            : 'bg-stone-50 border-stone-200 text-stone-550'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="progressRadios"
+                          checked={progressStatus === 'under_carpentry'}
+                          onChange={() => setProgressStatus('under_carpentry')}
+                          className="text-amber-700 focus:ring-amber-500 font-bold shrink-0 cursor-pointer"
+                        />
+                        <div>
+                          <strong className="text-xs block font-sans">Under Carpentry</strong>
+                          <span className="text-[10px] text-stone-400 font-medium font-sans">Active carpentry structure construction and assembly</span>
+                        </div>
+                      </label>
+                    </>
+                  ) : (
+                    /* Default In Progress (used by paint/polish) */
+                    <label
+                      className={`border rounded-xl p-3.5 flex items-center gap-3 cursor-pointer transition ${
+                        progressStatus === 'in_progress'
+                          ? 'bg-amber-50/40 border-amber-500 ring-2 ring-amber-500/10 text-amber-900'
+                          : 'bg-stone-50 border-stone-200 text-stone-550'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="progressRadios"
+                        checked={progressStatus === 'in_progress'}
+                        onChange={() => setProgressStatus('in_progress')}
+                        className="text-amber-700 focus:ring-amber-500 font-bold shrink-0 cursor-pointer"
+                      />
+                      <div>
+                        <strong className="text-xs block font-sans">In Progress</strong>
+                        <span className="text-[10px] text-stone-400 font-medium font-sans">Continue work on active cabinetry floor cutting</span>
+                      </div>
+                    </label>
+                  )}
 
                   <label
                     className={`border rounded-xl p-3.5 flex items-center gap-3 cursor-pointer transition ${

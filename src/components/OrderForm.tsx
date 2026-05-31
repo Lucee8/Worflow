@@ -30,6 +30,23 @@ const FURNITURE_PHOTOS = [
   'https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&q=80&w=800',
 ];
 
+const CATEGORY_MAP: Record<string, string[]> = {
+  'Door Frames': ['Set', 'Mandir Room', 'Door', 'Christian Door', 'Frame'],
+  'Wooden Sofas': ['Sofa'],
+  'Beds': ['Premium Bed', 'Open Bed', 'Floating Bed', 'Box Bed', 'Trolley Bed', 'Poster Bed', 'Bunk Bed', 'Hydraulic Bed'],
+  'Dressing Table': ['Dressing Table'],
+  'Wooden Swings': ['Swing'],
+  'Wooden Safety Doors': ['Safety Door'],
+  'Wooden Mandirs': ['Mandir', 'Rajasan', 'Pooja Mandir'],
+  'Teapoys & Coffee Tables': ['Teapoy'],
+  'Sofa Cum Beds': ['Sofa Cum Bed'],
+  'Dining Tables': ['Dining'],
+  'Wardrobes': ['Wardrobe'],
+  'TV Units': ['TV Unit'],
+  'Chaurang & Paats': ['Chaurang'],
+  'Diwans': ['Open Diwan', 'Box Diwan', 'Trolley Diwan', 'Bhaiyya Khat'],
+};
+
 interface OrderFormProps {
   customers: Customer[];
   users: User[];
@@ -51,13 +68,13 @@ export default function OrderForm({ customers, users, orders, onSave, onCancel }
   };
 
   // --- STEP 1: PRODUCT STATE ---
-  const [category, setCategory] = React.useState('Bedroom');
-  const [subCategory, setSubCategory] = React.useState('Wardrobe');
+  const [category, setCategory] = React.useState('Door Frames');
+  const [subCategory, setSubCategory] = React.useState('Set');
   const [size, setSize] = React.useState('6ft');
   const [customSize, setCustomSize] = React.useState('');
   const [designType, setDesignType] = React.useState<'Standard' | 'Custom'>('Standard');
   const [material, setMaterial] = React.useState('Plywood');
-  const [finish, setFinish] = React.useState('Laminate');
+  const [finish, setFinish] = React.useState('hand polish');
   const [colorShade, setColorShade] = React.useState('Walnut');
   const [noOfUnits, setNoOfUnits] = React.useState(1);
   const [specialNotes, setSpecialNotes] = React.useState('');
@@ -81,6 +98,8 @@ export default function OrderForm({ customers, users, orders, onSave, onCancel }
   // --- STEP 4: ASSIGNMENTS STATE ---
   const [carpenterId, setCarpenterId] = React.useState(activeCarpenters[0]?.id || '');
   const [polishPersonId, setPolishPersonId] = React.useState(activePolish[0]?.id || '');
+  const [carpenterLabourRate, setCarpenterLabourRate] = React.useState<number | ''>('');
+  const [polishLabourRate, setPolishLabourRate] = React.useState<number | ''>('');
 
   // --- STEP 5: REVIEW STATE ---
   const [orderDate, setOrderDate] = React.useState(new Date().toISOString().split('T')[0]);
@@ -220,7 +239,9 @@ export default function OrderForm({ customers, users, orders, onSave, onCancel }
       color_shade: colorShade,
       no_of_units: noOfUnits,
       carpenter_id: carpenterId,
+      carpenter_labour_rate: carpenterLabourRate !== '' ? Number(carpenterLabourRate) : undefined,
       polish_person_id: polishPersonId || undefined,
+      polish_labour_rate: polishLabourRate !== '' ? Number(polishLabourRate) : undefined,
       current_status: 'Pending',
       is_delayed: false,
       priority,
@@ -304,14 +325,21 @@ export default function OrderForm({ customers, users, orders, onSave, onCancel }
                   <label className="block text-xs font-bold text-stone-700 mb-1.5 uppercase tracking-wide">Category *</label>
                   <select
                     value={category}
-                    onChange={(e) => setCategory(e.target.value)}
+                    onChange={(e) => {
+                      const newCategory = e.target.value;
+                      setCategory(newCategory);
+                      const validSubs = CATEGORY_MAP[newCategory] || [];
+                      if (validSubs.length > 0) {
+                        setSubCategory(validSubs[0]);
+                      }
+                    }}
                     className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 focus:border-[#593622] rounded-xl text-xs focus:outline-none focus:ring-0 text-stone-700 font-semibold"
                   >
-                    <option>Bedroom</option>
-                    <option>Living Room</option>
-                    <option>Kitchen</option>
-                    <option>Office</option>
-                    <option>Dining Area</option>
+                    {Object.keys(CATEGORY_MAP).map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -322,13 +350,11 @@ export default function OrderForm({ customers, users, orders, onSave, onCancel }
                     onChange={(e) => setSubCategory(e.target.value)}
                     className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 focus:border-[#593622] rounded-xl text-xs focus:outline-none focus:ring-0 text-stone-700 font-semibold"
                   >
-                    <option>Wardrobe</option>
-                    <option>Bed</option>
-                    <option>Sofa</option>
-                    <option>Cabinet</option>
-                    <option>Table</option>
-                    <option>Chair</option>
-                    <option>Credenza</option>
+                    {(CATEGORY_MAP[category] || []).map((sub) => (
+                      <option key={sub} value={sub}>
+                        {sub}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -397,9 +423,10 @@ export default function OrderForm({ customers, users, orders, onSave, onCancel }
                     className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 focus:border-[#593622] rounded-xl text-xs focus:outline-none focus:ring-0 text-stone-700 font-semibold"
                   >
                     <option>Plywood</option>
-                    <option>Solid Wood</option>
-                    <option>MDF</option>
-                    <option>Particle Board</option>
+                    <option>Sagwan</option>
+                    <option>Shivan</option>
+                    <option>Aakashi</option>
+                    <option>Other Wood</option>
                   </select>
                 </div>
               </div>
@@ -412,10 +439,10 @@ export default function OrderForm({ customers, users, orders, onSave, onCancel }
                     onChange={(e) => setFinish(e.target.value)}
                     className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 focus:border-[#593622] rounded-xl text-xs focus:outline-none focus:ring-0 text-stone-700 font-semibold"
                   >
-                    <option>Laminate (Veneer Core)</option>
-                    <option>Matte White Polish</option>
-                    <option>Glossy Lacquer Clearcoat</option>
-                    <option>Natural Wood Polish</option>
+                    <option>hand polish</option>
+                    <option>matt</option>
+                    <option>glossy</option>
+                    <option>mix matt</option>
                   </select>
                 </div>
 
@@ -710,6 +737,26 @@ export default function OrderForm({ customers, users, orders, onSave, onCancel }
                     );
                   })}
                 </div>
+
+                {/* Labour Rate Input for selected Carpenter */}
+                <div className="mt-3 max-w-xs animate-in slide-in-from-top-1 duration-200">
+                  <label className="block text-xs font-bold text-stone-700 mb-1.5 uppercase tracking-wide">
+                    Carpenter Labour Rate (₹)
+                  </label>
+                  <div className="relative rounded-xl shadow-xs">
+                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                      <span className="text-stone-400 text-xs font-semibold">₹</span>
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      value={carpenterLabourRate}
+                      onChange={(e) => setCarpenterLabourRate(e.target.value === '' ? '' : Number(e.target.value))}
+                      placeholder="Enter carpenter labour rate"
+                      className="w-full pl-7 pr-3 py-2 bg-stone-50 border border-stone-200 focus:border-[#593622] rounded-xl text-xs focus:outline-none focus:ring-0 text-stone-700 font-semibold"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Polish Person Selector */}
@@ -748,6 +795,26 @@ export default function OrderForm({ customers, users, orders, onSave, onCancel }
                       </label>
                     );
                   })}
+                </div>
+
+                {/* Labour Rate Input for selected Polish Person */}
+                <div className="mt-3 max-w-xs animate-in slide-in-from-top-1 duration-200">
+                  <label className="block text-xs font-bold text-stone-700 mb-1.5 uppercase tracking-wide">
+                    Polish Person Labour Rate (₹)
+                  </label>
+                  <div className="relative rounded-xl shadow-xs">
+                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                      <span className="text-stone-400 text-xs font-semibold">₹</span>
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      value={polishLabourRate}
+                      onChange={(e) => setPolishLabourRate(e.target.value === '' ? '' : Number(e.target.value))}
+                      placeholder="Enter polish person labour rate"
+                      className="w-full pl-7 pr-3 py-2 bg-stone-50 border border-stone-200 focus:border-[#593622] rounded-xl text-xs focus:outline-none focus:ring-0 text-stone-700 font-semibold"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -918,6 +985,18 @@ export default function OrderForm({ customers, users, orders, onSave, onCancel }
                 <span>Units counts:</span>
                 <strong className="text-stone-900">{noOfUnits}</strong>
               </div>
+              {carpenterLabourRate !== '' && (
+                <div className="flex justify-between">
+                  <span>Carpenter Rate:</span>
+                  <strong className="text-stone-900">₹{carpenterLabourRate}</strong>
+                </div>
+              )}
+              {polishLabourRate !== '' && (
+                <div className="flex justify-between">
+                  <span>Polish Rate:</span>
+                  <strong className="text-stone-900">₹{polishLabourRate}</strong>
+                </div>
+              )}
               {custName && (
                 <div className="flex justify-between pt-1 border-t border-stone-150 font-serif">
                   <span>Customer:</span>
