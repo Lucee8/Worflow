@@ -23,7 +23,7 @@ export default function SimulationHUD({
   const [isOpen, setIsOpen] = React.useState(true);
 
   return (
-    <div className="z-50 bg-stone-900 border-b border-stone-800 text-stone-300 text-xs shadow-lg transition-all duration-300">
+    <div id="simulation-hud" className="z-50 bg-stone-900 border-b border-stone-800 text-stone-300 text-xs shadow-lg transition-all duration-300 print:hidden">
       <div className="max-w-7xl mx-auto px-4 py-2 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         
         {/* Left section: Sandbox label and Active user state */}

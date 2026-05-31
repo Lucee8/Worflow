@@ -20,6 +20,7 @@ import {
   Menu,
   X,
   Contact,
+  FileText,
 } from 'lucide-react';
 import React from 'react';
 
@@ -52,6 +53,7 @@ export default function Sidebar({
         { id: 'users', label: 'Users', icon: Users },
         { id: 'reports', label: 'Reports', icon: LineChart },
         { id: 'settings', label: 'Settings', icon: Settings },
+        { id: 'detail_order_form', label: 'Detail Order Form', icon: FileText },
       ]
     : [
         { id: 'my_orders', label: 'My Orders', icon: ClipboardList },

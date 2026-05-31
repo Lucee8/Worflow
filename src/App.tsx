@@ -21,6 +21,7 @@ import UsersTab from './components/UsersTab';
 import WorkerDashboard from './components/WorkerDashboard';
 import NotificationCenter from './components/NotificationCenter';
 import CustomersTab from './components/CustomersTab';
+import DetailOrderFormTab from './components/DetailOrderFormTab';
 
 // Utility icons
 import { HardHat, SlidersHorizontal, Settings as SettingsIcon, ShieldCheck } from 'lucide-react';
@@ -219,7 +220,7 @@ export default function App() {
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto pb-20 lg:pb-8">
           
           {/* Workshop Live Status Feed Header Row */}
-          <div className="flex justify-between items-center bg-white border border-stone-200/80 rounded-2xl p-4 mb-6 shadow-xs gap-4">
+          <div className="flex justify-between items-center bg-white border border-stone-200/80 rounded-2xl p-4 mb-6 shadow-xs gap-4 workshop-live-feed-header print:hidden">
             <div className="flex items-center gap-3 min-w-0">
               <div className="bg-amber-100 text-[#593622] p-2.5 rounded-xl hidden sm:flex items-center justify-center">
                 <ShieldCheck size={20} className="stroke-[2.5]" />
@@ -407,6 +408,23 @@ export default function App() {
                   </div>
                 </div>
               </div>
+            </motion.div>
+          )}
+
+          {/* TAB: DETAIL ORDER FORM (Admin Only) */}
+          {currentTab === 'detail_order_form' && isAdmin && (
+            <motion.div
+              key="detail_order_form"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+            >
+              <DetailOrderFormTab
+                orders={db.orders}
+                customers={db.customers}
+                users={db.users}
+                payments={db.payments}
+              />
             </motion.div>
           )}
 
