@@ -21,6 +21,7 @@ import {
   X,
   Contact,
   FileText,
+  Boxes,
 } from 'lucide-react';
 import React from 'react';
 
@@ -54,6 +55,7 @@ export default function Sidebar({
         { id: 'reports', label: 'Reports', icon: LineChart },
         { id: 'settings', label: 'Settings', icon: Settings },
         { id: 'detail_order_form', label: 'Detail Order Form', icon: FileText },
+        { id: 'mrp', label: 'Material Planning (MRP)', icon: Boxes },
       ]
     : [
         { id: 'my_orders', label: 'My Orders', icon: ClipboardList },

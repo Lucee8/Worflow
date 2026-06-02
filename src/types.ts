@@ -41,6 +41,24 @@ export type OrderStage =
 
 export type OrderPriority = 'normal' | 'urgent';
 
+export interface WoodPart {
+  id: string;
+  part_name: string;
+  width: number; // in inches
+  breadth: number; // in inches
+  length: number; // in feet
+  quantity: number;
+}
+
+export interface WoodSchedule {
+  catalogue_name: string;
+  model_name: string;
+  size_of_product: string;
+  sqft: number;
+  image_link?: string;
+  parts: WoodPart[];
+}
+
 export interface Order {
   id: string; // UUID
   article_no: string; // YY/MM/XX/NNNN
@@ -79,6 +97,7 @@ export interface Order {
     uploaded_at: string;
     uploaded_by: string;
   }>;
+  wood_schedule?: WoodSchedule;
 }
 
 export interface StatusLog {

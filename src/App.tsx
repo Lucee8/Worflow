@@ -7,6 +7,16 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { loadState, saveState, AppState } from './db/store';
 import { User, Customer, Order, StatusLog, Payment } from './types';
+import {
+  authenticateFirebase,
+  seedFirestoreIfEmpty,
+  syncFirestore,
+  saveOrderToFirebase,
+  saveCustomerToFirebase,
+  saveStatusLogToFirebase,
+  savePaymentToFirebase,
+  saveUserToFirebase
+} from './db/firebaseService';
 
 // Component imports
 import SimulationHUD from './components/SimulationHUD';
@@ -22,18 +32,60 @@ import WorkerDashboard from './components/WorkerDashboard';
 import NotificationCenter from './components/NotificationCenter';
 import CustomersTab from './components/CustomersTab';
 import DetailOrderFormTab from './components/DetailOrderFormTab';
+import MaterialRequirementPlanning from './components/MaterialRequirementPlanning';
 
 // Utility icons
 import { HardHat, SlidersHorizontal, Settings as SettingsIcon, ShieldCheck } from 'lucide-react';
 
 export default function App() {
-  // Database store loader state
+  // Database store loader state (with local cache load)
   const [db, setDb] = React.useState<AppState>(() => loadState());
   const [currentTab, setCurrentTab] = React.useState<string>('dashboard');
   const [selectedOrderId, setSelectedOrderId] = React.useState<string | null>(null);
 
   // Active simulated user session (start as null to show login page by default)
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
+
+  // Firebase connection and sync states
+  const [firebaseConnected, setFirebaseConnected] = React.useState<boolean>(false);
+  const [firebaseSeeding, setFirebaseSeeding] = React.useState<boolean>(false);
+
+  // Sync with Firestore asynchronously on initialization
+  React.useEffect(() => {
+    let unsubscribe: (() => void) | null = null;
+
+    async function initializeSync() {
+      const authenticated = await authenticateFirebase();
+      if (authenticated) {
+        setFirebaseConnected(true);
+        setFirebaseSeeding(true);
+        // Seed if first time setup (empty)
+        await seedFirestoreIfEmpty(db);
+        setFirebaseSeeding(false);
+
+        // Subscribes to snapshotted real-time database updates
+        unsubscribe = syncFirestore(
+          (updatedState) => {
+            setDb((currentDb) => ({
+              ...currentDb,
+              ...updatedState,
+            }));
+          },
+          (error) => {
+            console.error("Firestore sync subscription error:", error);
+          }
+        );
+      }
+    }
+
+    initializeSync();
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, []);
 
   // Save database shifts on mutations
   const updateDbState = (newDb: AppState) => {
@@ -112,6 +164,13 @@ export default function App() {
       statusLogs: updatedLogs,
     });
 
+    // Write to Firestore asynchronously
+    saveOrderToFirebase(newOrder);
+    if (newCustomer) {
+      saveCustomerToFirebase(newCustomer);
+    }
+    saveStatusLogToFirebase(log);
+
     setCurrentTab('orders'); // Jump back to listings tab
     alert(`Success: Order registered! Article NO is ${newOrder.article_no}`);
   };
@@ -128,6 +187,12 @@ export default function App() {
       orders: freshOrders,
       statusLogs: freshLogs,
     });
+
+    // Write to Firestore asynchronously
+    saveOrderToFirebase(updatedOrder);
+    if (newLog) {
+      saveStatusLogToFirebase(newLog);
+    }
   };
 
   const handleAddPayment = (payment: Payment) => {
@@ -142,6 +207,9 @@ export default function App() {
       ...db,
       payments: updatedPayments,
     });
+
+    // Write to Firestore asynchronously
+    savePaymentToFirebase(payment);
   };
 
   const handleAddUser = (newUser: User) => {
@@ -150,6 +218,9 @@ export default function App() {
       ...db,
       users: updatedUsers,
     });
+
+    // Write to Firestore asynchronously
+    saveUserToFirebase(newUser);
   };
 
   const handleUpdateUser = (updatedUser: User) => {
@@ -163,6 +234,9 @@ export default function App() {
     if (currentUser && currentUser.id === updatedUser.id) {
       setCurrentUser(updatedUser);
     }
+
+    // Write to Firestore asynchronously
+    saveUserToFirebase(updatedUser);
   };
 
   // Nav to specific order details tab
@@ -226,7 +300,15 @@ export default function App() {
                 <ShieldCheck size={20} className="stroke-[2.5]" />
               </div>
               <div className="min-w-0 text-left">
-                <h4 className="font-extrabold text-[#593622] text-xs uppercase tracking-wider leading-none">Workshop Live Feed</h4>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="font-extrabold text-[#593622] text-xs uppercase tracking-wider leading-none">Workshop Live Feed</h4>
+                  {firebaseConnected && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold font-mono tracking-wider uppercase bg-green-500/10 text-green-700 border border-green-500/20">
+                      <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                      {firebaseSeeding ? "Seeding..." : "Cloud Sync Live"}
+                    </span>
+                  )}
+                </div>
                 <p className="text-[11px] text-stone-500 mt-1 truncate">
                   Poller active: Monitoring assignments for <span className="font-semibold text-stone-800">{currentUser.name}</span> ({currentUser.role.replace('_', ' ')})
                 </p>
@@ -424,6 +506,23 @@ export default function App() {
                 customers={db.customers}
                 users={db.users}
                 payments={db.payments}
+              />
+            </motion.div>
+          )}
+
+          {/* TAB: MATERIAL REQUIREMENT PLANNING (MRP) (Admin Only) */}
+          {currentTab === 'mrp' && isAdmin && (
+            <motion.div
+              key="mrp"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+            >
+              <MaterialRequirementPlanning
+                selectedOrderId={selectedOrderId || ''}
+                orders={db.orders}
+                customers={db.customers}
+                onOrderUpdate={handleUpdateOrder}
               />
             </motion.div>
           )}

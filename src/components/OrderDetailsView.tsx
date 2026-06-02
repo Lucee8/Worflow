@@ -22,7 +22,8 @@ import {
   ClipboardCheck, 
   X,
   Plus,
-  CreditCard
+  CreditCard,
+  ExternalLink
 } from 'lucide-react';
 
 interface OrderDetailsViewProps {
@@ -607,6 +608,137 @@ export default function OrderDetailsView({
               </div>
             )}
           </div>
+
+          {/* SECTION 2.5: WOOD REQUIREMENT SPECIFICATION SHEET */}
+          {order.wood_schedule ? (
+            <div className="bg-white p-5 rounded-2xl border border-stone-200/80 shadow-xs space-y-4">
+              <div className="pb-3 border-b border-stone-100 flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-[#593622] flex items-center gap-1.5">
+                    🪓 Wood Requirement Schedule
+                  </h2>
+                  <p className="text-[11px] text-stone-400 mt-0.5">Approved component-level wood sawing and calculation schedule</p>
+                </div>
+                <div className="p-1 px-3 bg-amber-50 text-amber-900 border border-amber-250 rounded-lg text-[10px] font-mono font-black uppercase">
+                  {order.wood_schedule.parts?.length || 0} Components Registered
+                </div>
+              </div>
+
+              {/* Product information fields */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-stone-50 p-3 rounded-xl border border-stone-150 text-xs text-stone-600 font-sans">
+                <div>
+                  <span className="text-[9px] text-stone-400 font-bold block uppercase tracking-wide">Catalogue Reference</span>
+                  <strong className="text-stone-850 block mt-0.5 font-semibold">{order.wood_schedule.catalogue_name}</strong>
+                </div>
+                <div>
+                  <span className="text-[9px] text-stone-400 font-bold block uppercase tracking-wide">Model Code</span>
+                  <strong className="text-stone-850 block mt-0.5 font-black text-[#593622]">{order.wood_schedule.model_name}</strong>
+                </div>
+                <div>
+                  <span className="text-[9px] text-stone-400 font-bold block uppercase tracking-wide">Finished Size</span>
+                  <strong className="text-stone-850 block mt-0.5 font-semibold">{order.wood_schedule.size_of_product}</strong>
+                </div>
+                <div>
+                  <span className="text-[9px] text-stone-400 font-bold block uppercase tracking-wide">Calculated Surface</span>
+                  <strong className="text-stone-850 block mt-0.5 font-mono font-bold">{order.wood_schedule.sqft} SQFT</strong>
+                </div>
+              </div>
+
+              {/* Design Preview layout if available */}
+              {order.wood_schedule.image_link && (
+                <div className="flex items-center gap-3 bg-amber-50/20 border border-amber-200/45 p-2.5 rounded-xl text-xs">
+                  <div className="w-10 h-10 rounded-lg overflow-hidden border border-stone-200 shrink-0 bg-stone-150">
+                    <img referrerPolicy="no-referrer" src={order.wood_schedule.image_link} alt="Wood spec" className="object-cover w-full h-full" />
+                  </div>
+                  <div className="flex-1 min-w-0 font-sans">
+                    <strong className="text-[#593622] text-xs font-bold">Reference Drawing Blueprint</strong>
+                    <p className="text-[10px] text-stone-500 mt-0.5 truncate">Estimated reference blueprint design template link enabled</p>
+                  </div>
+                  <a
+                    href={order.wood_schedule.image_link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-1.5 hover:bg-stone-50 text-[#593622] hover:text-[#402414] rounded-lg transition shrink-0 font-bold text-[10px] uppercase flex items-center gap-1 border border-stone-200 shadow-xs bg-white"
+                  >
+                    Open Link <ExternalLink size={10} />
+                  </a>
+                </div>
+              )}
+
+              {/* Wood schedule components table details */}
+              <div className="border border-stone-200 rounded-xl overflow-hidden shadow-xs">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse font-sans">
+                    <thead>
+                      <tr className="bg-stone-50 border-b border-stone-205 text-stone-450 font-bold text-[9px] uppercase tracking-wider text-center select-none">
+                        <th className="py-2.5 px-3 text-left border-r border-stone-200">Wooden Part Name</th>
+                        <th className="py-2.5 px-2 border-r border-stone-200">Width (W)</th>
+                        <th className="py-2.5 px-2 border-r border-stone-200">Breadth (B)</th>
+                        <th className="py-2.5 px-2 border-r border-stone-200">Length (L)</th>
+                        <th className="py-2.5 px-2 border-r border-stone-200">Qty</th>
+                        <th className="py-2.5 px-3 text-right">CFT Volume</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-150 bg-white">
+                      {order.wood_schedule.parts && order.wood_schedule.parts.length > 0 ? (
+                        order.wood_schedule.parts.map((p: any) => {
+                          const partCft = ((p.width * p.breadth * p.length) / 144) * p.quantity;
+                          return (
+                            <tr key={p.id} className="text-center font-medium text-stone-850 hover:bg-stone-50/40">
+                              <td className="py-2 px-3 text-left border-r border-stone-150 font-semibold text-stone-900">
+                                {p.part_name}
+                              </td>
+                              <td className="py-2 px-2 border-r border-stone-150 font-mono text-[11px]">{p.width} in</td>
+                              <td className="py-2 px-2 border-r border-stone-150 font-mono text-[11px]">{p.breadth} in</td>
+                              <td className="py-2 px-2 border-r border-stone-150 font-mono text-[11px]">{p.length} ft</td>
+                              <td className="py-2 px-2 border-r border-stone-150 font-mono text-[11px] text-stone-900 font-bold">{p.quantity}</td>
+                              <td className="py-2 px-3 text-right font-mono text-stone-900 font-bold">
+                                {isNaN(partCft) ? '0.00' : partCft.toFixed(2)} CFT
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan={6} className="py-6 text-center text-stone-400 italic font-sans font-medium">
+                            No wooden parts specified in this schedule.
+                          </td>
+                        </tr>
+                      )}
+                      
+                      {/* Total Wood CFT */}
+                      <tr className="bg-amber-50/20 font-bold border-t border-stone-200 select-none text-[#593622]">
+                        <td colSpan={5} className="py-3 px-3 uppercase text-right text-[10px] tracking-wider border-r border-stone-150 font-bold">
+                          Total Wood Required (Cubic Feet):
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono text-[13px] font-black text-amber-900">
+                          {(order.wood_schedule.parts || []).reduce((acc: number, p: any) => {
+                            const partCft = ((p.width * p.breadth * p.length) / 144) * p.quantity;
+                            return acc + (isNaN(partCft) ? 0 : partCft);
+                          }, 0).toFixed(2)} CFT
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white p-5 rounded-2xl border border-stone-200/80 shadow-xs space-y-3.5">
+              <div className="flex items-center gap-2">
+                <div className="rounded-lg bg-stone-100 p-2 text-stone-550 border border-stone-200">
+                  <Hammer size={16} />
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-stone-500 font-sans leading-none">Wood Requirement & Estimation Schedule</h3>
+                  <p className="text-[10px] text-stone-400 mt-1 font-medium font-sans">Sawing dimensions and cubic-ft (CFT) specifications pending</p>
+                </div>
+              </div>
+              <p className="text-stone-500 text-[11px] leading-relaxed font-sans">
+                No wood requirement schedule registered for this order yet. Once the assigned Carpenter starts work on this order, they can configure, calculate, and log sawing specifications during the active <strong className="text-[#593622]/90">Carpentry</strong> stage update.
+              </p>
+            </div>
+          )}
 
           {/* SECTION 3: RECENT STATUS TIMELINE LOG (Permanently logged) */}
           <div className="bg-white p-5 rounded-2xl border border-stone-200/80 shadow-xs space-y-4">
