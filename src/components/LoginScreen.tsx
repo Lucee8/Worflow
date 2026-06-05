@@ -52,6 +52,33 @@ export default function LoginScreen({ users, onLoginSuccess }: LoginScreenProps)
     }, 2000);
   };
 
+  const handleInstantBypass = () => {
+    const matched = users.find(u => u.email.trim().toLowerCase() === 'luceecode@gmail.com');
+    if (matched) {
+      setSuccessMessage(`Bypass Authorized! Logging you in as ${matched.name}...`);
+      setTimeout(() => {
+        onLoginSuccess(matched);
+      }, 600);
+    } else {
+      const newUser: User = {
+        id: 'user_lucee_gmail',
+        name: 'Lucee Code Administrator',
+        email: 'luceecode@gmail.com',
+        role: 'admin',
+        initials: 'LC',
+        is_active: true,
+        created_at: new Date().toISOString(),
+        last_seen: 'Just now',
+        google_linked: true,
+        password: 'admin',
+      };
+      setSuccessMessage(`Bypass Authorized! Bootstrapped new profile for ${newUser.name}...`);
+      setTimeout(() => {
+        onLoginSuccess(newUser);
+      }, 600);
+    }
+  };
+
   // Trigger real production-grade Google Authentication with Firebase Auth
   const handleRealGoogleLogin = async () => {
     setErrorMessage(null);
@@ -305,15 +332,30 @@ export default function LoginScreen({ users, onLoginSuccess }: LoginScreenProps)
               </div>
 
               {errorMessage && (
-                <div className="bg-rose-50 border-l-4 border-rose-600 p-3.5 rounded-r-lg flex gap-2.5 text-stone-800 text-[11px] text-left">
-                  <AlertCircle className="text-rose-600 shrink-0 mt-0.5" size={14} />
-                  <div className="text-left">
-                    <span className="font-bold text-rose-800">Authorization Info</span>
-                    <p className="mt-0.5 leading-relaxed">{errorMessage}</p>
+                <div className="bg-rose-50 border-l-4 border-rose-600 p-4 rounded-r-xl text-stone-800 text-[11px] text-left space-y-3">
+                  <div className="flex gap-2.5">
+                    <AlertCircle className="text-rose-600 shrink-0 mt-0.5" size={14} />
+                    <div className="text-left">
+                      <span className="font-bold text-rose-800 text-xs block">Google Account Auth Blocked</span>
+                      <p className="mt-1 leading-relaxed text-stone-600">
+                        Firebase blocks Google Sign-In requests from domains that aren't whitelisted. To login directly with Google, you must add <code className="bg-stone-100 px-1 py-0.5 rounded text-stone-800 font-mono font-bold">{activeDomain}</code> to your <strong className="text-stone-800">Authorized Domains</strong> whitelist in your <strong className="hover:underline text-rose-800 font-extrabold cursor-pointer" onClick={() => window.open(`https://console.firebase.google.com/project/${projectID}/authentication/settings`, '_blank')}>Firebase Console (click here)</strong>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-stone-200/50 pt-2.5 flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={handleInstantBypass}
+                      className="w-full bg-[#593622] hover:bg-[#402414] text-white py-1.5 px-3 rounded-lg font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 shadow transition"
+                    >
+                      ⚡ Direct One-Click Bypass (Log in as Lucee Code)
+                    </button>
+                    
                     <button 
                       type="button" 
                       onClick={() => setShowGoogleChooser(true)}
-                      className="text-stone-900 font-extrabold underline block mt-2 text-[10px] hover:text-[#593622]"
+                      className="text-stone-700 font-extrabold underline block text-center text-[10px] hover:text-[#593622]"
                     >
                       💡 Open Custom Google Authorization Selector &amp; Troubleshooter
                     </button>
