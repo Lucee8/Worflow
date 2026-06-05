@@ -18,7 +18,6 @@ import {
   saveUserToFirebase,
   deleteUserFromFirebase
 } from './db/firebaseService';
-import { auth } from './db/firebase';
 
 // Component imports
 import SimulationHUD from './components/SimulationHUD';
@@ -89,30 +88,6 @@ export default function App() {
     };
   }, []);
 
-  // Auto-login persistent Google-authenticated user from Firebase auth session
-  React.useEffect(() => {
-    const unsubscribeAuth = auth.onAuthStateChanged((firebaseUser) => {
-      if (firebaseUser && !firebaseUser.isAnonymous && firebaseUser.email) {
-        const emailLower = firebaseUser.email.trim().toLowerCase();
-        const matched = db.users.find(u => u.email.trim().toLowerCase() === emailLower);
-        
-        if (matched) {
-          if (matched.is_active && (!currentUser || currentUser.email !== matched.email)) {
-            console.log("Auto-logged in Google authenticated user:", matched.name);
-            setCurrentUser(matched);
-            if (matched.role === 'admin') {
-              setCurrentTab('dashboard');
-            } else {
-              setCurrentTab('my_orders');
-            }
-          }
-        }
-      }
-    });
-
-    return () => unsubscribeAuth();
-  }, [db.users, currentUser]);
-
   // Save database shifts on mutations
   const updateDbState = (newDb: AppState) => {
     setDb(newDb);
@@ -167,15 +142,9 @@ export default function App() {
     }
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     setCurrentUser(null);
     setCurrentTab('dashboard');
-    try {
-      await auth.signOut();
-      await authenticateFirebase();
-    } catch (err) {
-      console.error("Failed to sign out elegantly:", err);
-    }
   };
 
   // Staging CRUD updates actions
