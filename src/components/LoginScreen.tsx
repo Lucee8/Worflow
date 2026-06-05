@@ -160,15 +160,12 @@ export default function LoginScreen({ users, onLoginSuccess }: LoginScreenProps)
       console.error("Firebase Google Auth exception:", err);
       let friendlyMessage = err.message || String(err);
       
-      // Open our spectacular simulated Google Chooser + Auth troubleshooting center automatically!
-      setShowGoogleChooser(true);
-      
       if (friendlyMessage.includes('popup-closed-by-user')) {
         setErrorMessage('Authentication canceled: Google sign-in window was closed.');
       } else if (friendlyMessage.includes('auth/unauthorized-domain')) {
-        setErrorMessage('This domain is currently unauthorized for Google OAuth. Please add it to your Firebase Console settings following the instructions below, or log in instantly.');
+        setErrorMessage('This domain is currently unauthorized for Google OAuth. Please add it to your Firebase Console settings following the instructions below.');
       } else {
-        setErrorMessage(`Google Auth popup was restricted. You can configure Google Authorized Domains or log in instantly via the secure selector database.`);
+        setErrorMessage(`Google authentication failed. Please configure your Google Authorized Domains inside your Firebase Project to resolve this.`);
       }
     }
   };
@@ -332,33 +329,26 @@ export default function LoginScreen({ users, onLoginSuccess }: LoginScreenProps)
               </div>
 
               {errorMessage && (
-                <div className="bg-rose-50 border-l-4 border-rose-600 p-4 rounded-r-xl text-stone-800 text-[11px] text-left space-y-3">
+                <div className="bg-rose-50 border-l-4 border-rose-600 p-4 rounded-r-xl text-stone-800 text-[11px] text-left space-y-2.5">
                   <div className="flex gap-2.5">
                     <AlertCircle className="text-rose-600 shrink-0 mt-0.5" size={14} />
                     <div className="text-left">
-                      <span className="font-bold text-rose-800 text-xs block">Google Account Auth Blocked</span>
+                      <span className="font-bold text-rose-800 text-xs block">Google Sign-In Error / Setup Required</span>
                       <p className="mt-1 leading-relaxed text-stone-600">
-                        Firebase blocks Google Sign-In requests from domains that aren't whitelisted. To login directly with Google, you must add <code className="bg-stone-100 px-1 py-0.5 rounded text-stone-800 font-mono font-bold">{activeDomain}</code> to your <strong className="text-stone-800">Authorized Domains</strong> whitelist in your <strong className="hover:underline text-rose-800 font-extrabold cursor-pointer" onClick={() => window.open(`https://console.firebase.google.com/project/${projectID}/authentication/settings`, '_blank')}>Firebase Console (click here)</strong>.
+                        Firebase authentication restricts Google logins to authorized redirect URLs. To resolve this error and login directly with your Google account, you must add <code className="bg-stone-150 px-1 py-0.5 rounded text-stone-900 font-mono font-bold text-[10px]">{activeDomain}</code> to your <strong className="text-stone-800">Authorized Domains</strong> list in your Firebase console.
                       </p>
                     </div>
                   </div>
 
-                  <div className="border-t border-stone-200/50 pt-2.5 flex flex-col gap-2">
-                    <button
-                      type="button"
-                      onClick={handleInstantBypass}
-                      className="w-full bg-[#593622] hover:bg-[#402414] text-white py-1.5 px-3 rounded-lg font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 shadow transition"
+                  <div className="border-t border-stone-200/50 pt-2 flex flex-col gap-1.5">
+                    <a 
+                      href={`https://console.firebase.google.com/project/${projectID}/authentication/settings`}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="w-full bg-[#593622] hover:bg-[#402414] text-white py-1.5 px-3 rounded-lg font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 shadow transition text-center"
                     >
-                      ⚡ Direct One-Click Bypass (Log in as Lucee Code)
-                    </button>
-                    
-                    <button 
-                      type="button" 
-                      onClick={() => setShowGoogleChooser(true)}
-                      className="text-stone-700 font-extrabold underline block text-center text-[10px] hover:text-[#593622]"
-                    >
-                      💡 Open Custom Google Authorization Selector &amp; Troubleshooter
-                    </button>
+                      ⛓️ Open Firebase Auth Settings Dashboard ↗
+                    </a>
                   </div>
                 </div>
               )}
@@ -477,19 +467,6 @@ export default function LoginScreen({ users, onLoginSuccess }: LoginScreenProps)
                 </svg>
                 <span>Continue with Google Account</span>
               </button>
-
-              {/* DEDICATED PRE-MAPPED ROLES QUICK LOGIN LINK */}
-              <div className="text-center pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowGoogleChooser(true);
-                  }}
-                  className="text-[10px] sm:text-[11px] font-bold text-[#593622] hover:text-[#402414] hover:underline cursor-pointer transition uppercase tracking-wider block mx-auto"
-                >
-                  ⚡ Continue with google account selector (demo fallback)
-                </button>
-              </div>
 
             </div>
 
