@@ -11,7 +11,8 @@ import {
   getDocs, 
   onSnapshot, 
   writeBatch, 
-  getDocFromServer 
+  getDocFromServer,
+  deleteDoc
 } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from './firebase';
 import { AppState } from './store';
@@ -54,48 +55,94 @@ export async function seedFirestoreIfEmpty(seedData: AppState): Promise<void> {
     const usersCollection = collection(db, 'users');
     const usersSnapshot = await getDocs(usersCollection);
     
-    if (usersSnapshot.empty) {
-      console.log("Firestore is empty. Seeding robust workshop model dataset recursively...");
-      
-      const batch = writeBatch(db);
-      
-      // Seed Users
-      for (const u of seedData.users) {
-        batch.set(doc(db, 'users', u.id), u);
+    // Check if known legacy demo records exist to run an auto-clean sweep
+    const ordersCollection = collection(db, 'orders');
+    const ordersSnapshot = await getDocs(ordersCollection);
+
+    const customersCollection = collection(db, 'customers');
+    const customersSnapshot = await getDocs(customersCollection);
+
+    const paymentsCollection = collection(db, 'payments');
+    const paymentsSnapshot = await getDocs(paymentsCollection);
+
+    const statusLogsCollection = collection(db, 'statusLogs');
+    const statusLogsSnapshot = await getDocs(statusLogsCollection);
+
+    const materialsCollection = collection(db, 'materials');
+    const materialsSnapshot = await getDocs(materialsCollection);
+
+    console.log("Performing a complete database verification/clean-up sweep...");
+    const batch = writeBatch(db);
+    let deletedCount = 0;
+
+    // Delete users that are mock characters
+    const mockUserIds = ['user_admin_gmail', 'user_amit_gmail', 'user_mahesh_gmail', 'user_sagar', 'user_vijay', 'user_mahesh', 'user_ramesh', 'user_pooja', 'user_sneha', 'user_amit', 'user_vishal', 'user_tushar'];
+    usersSnapshot.docs.forEach(doc => {
+      if (mockUserIds.includes(doc.id)) {
+        batch.delete(doc.ref);
+        deletedCount++;
       }
-      
-      // Seed Customers
-      for (const c of seedData.customers) {
-        batch.set(doc(db, 'customers', c.id), c);
+    });
+
+    // Delete mock or demo orders (IDs matching 'order_' + digits/keys)
+    ordersSnapshot.docs.forEach(doc => {
+      if (doc.id.startsWith('order_')) {
+        batch.delete(doc.ref);
+        deletedCount++;
       }
-      
-      // Seed Orders
-      for (const o of seedData.orders) {
-        batch.set(doc(db, 'orders', o.id), o);
+    });
+
+    // Delete mock customers (IDs starting with 'cust_')
+    customersSnapshot.docs.forEach(doc => {
+      if (doc.id.startsWith('cust_')) {
+        batch.delete(doc.ref);
+        deletedCount++;
       }
-      
-      // Seed Status Logs
-      for (const l of seedData.statusLogs) {
-        batch.set(doc(db, 'statusLogs', l.id), l);
+    });
+
+    // Delete mock payments (IDs starting with 'pay_')
+    paymentsSnapshot.docs.forEach(doc => {
+      if (doc.id.startsWith('pay_')) {
+        batch.delete(doc.ref);
+        deletedCount++;
       }
-      
-      // Seed Materials
-      for (const m of seedData.materials) {
-        batch.set(doc(db, 'materials', m.id), m);
+    });
+
+    // Delete mock logs (IDs starting with 'log_' + index/suffix)
+    statusLogsSnapshot.docs.forEach(doc => {
+      if (doc.id === 'log_1' || doc.id === 'log_2' || doc.id === 'log_3' || doc.id.startsWith('log_mrp_')) {
+        batch.delete(doc.ref);
+        deletedCount++;
       }
-      
-      // Seed Payments
-      for (const p of seedData.payments) {
-        batch.set(doc(db, 'payments', p.id), p);
+    });
+
+    // Delete mock materials (IDs starting with 'mat_')
+    materialsSnapshot.docs.forEach(doc => {
+      if (['mat_ply', 'mat_laminate', 'mat_hinges', 'mat_adhesive'].includes(doc.id) || doc.id.startsWith('mat_')) {
+        batch.delete(doc.ref);
+        deletedCount++;
       }
-      
+    });
+
+    if (deletedCount > 0) {
       await batch.commit();
-      console.log("Firestore successfully seeded with 6 default workshop collections.");
-    } else {
-      console.log("Firestore already contains data. Seeding phase bypassed.");
+      console.log(`Firestore successfully purged of ${deletedCount} test/demo documents.`);
     }
+
+    // Ensure clean production administrator accounts are provisioned
+    const freshUsersSnapshot = await getDocs(collection(db, 'users'));
+    if (freshUsersSnapshot.empty || freshUsersSnapshot.docs.length === 0) {
+      console.log("No administrators found. Seeding core production credentials...");
+      const seedBatch = writeBatch(db);
+      for (const u of seedData.users) {
+        seedBatch.set(doc(db, 'users', u.id), u);
+      }
+      await seedBatch.commit();
+      console.log("Core production administrators successfully provisioned in Firestore.");
+    }
+
   } catch (error) {
-    console.error("Failed to seed Firestore:", error);
+    console.error("Failed to seed and clean Firestore:", error);
   }
 }
 
@@ -184,6 +231,15 @@ export async function savePaymentToFirebase(payment: Payment): Promise<void> {
   const path = `payments/${payment.id}`;
   try {
     await setDoc(doc(db, 'payments', payment.id), payment);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function deleteUserFromFirebase(userId: string): Promise<void> {
+  const path = `users/${userId}`;
+  try {
+    await deleteDoc(doc(db, 'users', userId));
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }

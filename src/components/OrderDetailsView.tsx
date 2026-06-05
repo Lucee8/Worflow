@@ -23,7 +23,11 @@ import {
   X,
   Plus,
   CreditCard,
-  ExternalLink
+  ExternalLink,
+  Camera,
+  UploadCloud,
+  Video,
+  Image as ImageIcon
 } from 'lucide-react';
 
 interface OrderDetailsViewProps {
@@ -75,6 +79,134 @@ export default function OrderDetailsView({
   const [newImgUrl, setNewImgUrl] = React.useState('');
   const [showImgModal, setShowImgModal] = React.useState(false);
   const [imgType, setImgType] = React.useState<'Design Reference' | 'In-Progress' | 'Final'>('In-Progress');
+
+  // Interactive Camera & Local Upload states
+  const [isWebcamActive, setIsWebcamActive] = React.useState(false);
+  const [webcamStream, setWebcamStream] = React.useState<MediaStream | null>(null);
+  const [webcamError, setWebcamError] = React.useState<string | null>(null);
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+
+  const startWebcam = async () => {
+    setWebcamError(null);
+    setIsWebcamActive(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false
+      });
+      setWebcamStream(stream);
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 100);
+    } catch (err: any) {
+      console.error("Webcam access failed:", err);
+      setWebcamError(
+        "Could not launch camera stream. Please use the mobile native camera button or upload standard local files directly."
+      );
+    }
+  };
+
+  const stopWebcam = () => {
+    if (webcamStream) {
+      webcamStream.getTracks().forEach((track) => track.stop());
+      setWebcamStream(null);
+    }
+    setIsWebcamActive(false);
+  };
+
+  const captureSnapshot = () => {
+    if (videoRef.current) {
+      const video = videoRef.current;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        
+        // Append direct image base64 directly to order pictures
+        const updatedOrder: Order = {
+          ...order,
+          images: [
+            ...order.images,
+            {
+              id: 'img_' + generateUUID().split('-')[0],
+              url: dataUrl,
+              type: imgType,
+              uploaded_at: new Date().toISOString(),
+              uploaded_by: currentUser.name,
+            }
+          ],
+          updated_at: new Date().toISOString(),
+        };
+        onUpdateOrder(updatedOrder);
+        stopWebcam();
+        setShowImgModal(false);
+        alert('Snapshot captured and appended to order photos!');
+      }
+    }
+  };
+
+  const handleLocalFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file: File) => {
+      if (!file.type.startsWith('image/')) {
+        alert('Please choose an image file (PNG, JPG, WEBP, etc).');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          const base64Url = event.target.result as string;
+          const updatedOrder: Order = {
+            ...order,
+            images: [
+              ...order.images,
+              {
+                id: 'img_' + generateUUID().split('-')[0],
+                url: base64Url,
+                type: imgType,
+                uploaded_at: new Date().toISOString(),
+                uploaded_by: currentUser.name,
+              }
+            ],
+            updated_at: new Date().toISOString(),
+          };
+          onUpdateOrder(updatedOrder);
+          alert(`Selected file (${file.name}) uploaded and added!`);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    
+    e.target.value = '';
+    setShowImgModal(false);
+  };
+
+  // Safe release of streams on toggle / unmount
+  React.useEffect(() => {
+    if (!showImgModal) {
+      if (webcamStream) {
+        webcamStream.getTracks().forEach((track) => track.stop());
+        setWebcamStream(null);
+      }
+      setIsWebcamActive(false);
+    }
+  }, [showImgModal]);
+
+  React.useEffect(() => {
+    return () => {
+      if (webcamStream) {
+        webcamStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [webcamStream]);
 
   // QC Failure Note State
   const [showQcFailModal, setShowQcFailModal] = React.useState(false);
@@ -1161,56 +1293,167 @@ export default function OrderDetailsView({
       {/* Image addition simulated URL popup modal */}
       {showImgModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-stone-200 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-stone-200 space-y-4 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between border-b border-stone-100 pb-2">
-              <strong className="text-stone-900 text-sm">Add Workshop Progress Photo</strong>
-              <button onClick={() => setShowImgModal(false)} className="text-stone-400 hover:text-stone-600">
+              <strong className="text-stone-900 text-sm font-black uppercase tracking-wider">Add Workshop Progress Photo</strong>
+              <button 
+                onClick={() => {
+                  stopWebcam();
+                  setShowImgModal(false);
+                }} 
+                className="text-stone-400 hover:text-stone-600"
+              >
                 <X size={15} />
               </button>
             </div>
 
-            <div className="space-y-3.5 text-xs text-stone-600">
+            <div className="space-y-3.5 text-xs text-stone-600 font-sans">
               <div>
-                <label className="block text-xs font-bold text-stone-700 tracking-wider uppercase mb-1.5">Photo Classification</label>
+                <label className="block text-[10px] font-bold text-stone-700 tracking-wider uppercase mb-1.5">Photo Classification</label>
                 <select
                   value={imgType}
                   onChange={(e) => setImgType(e.target.value as any)}
-                  className="w-full p-2 bg-stone-50 border border-stone-250 focus:outline-none rounded-lg font-bold"
+                  className="w-full p-2 bg-stone-50 border border-stone-250 focus:outline-none rounded-lg font-bold text-stone-900"
                 >
-                  <option>In-Progress</option>
-                  <option>Final</option>
-                  <option>Design Reference</option>
+                  <option value="In-Progress">In-Progress Workshop Photo</option>
+                  <option value="Final">Final Finished Photo</option>
+                  <option value="Design Reference">Design Reference Drawing</option>
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-stone-700 tracking-wider uppercase mb-1.5">Paster Photo URL Link</label>
-                <input
-                  type="text"
-                  value={newImgUrl}
-                  onChange={(e) => setNewImgUrl(e.target.value)}
-                  placeholder="https://images.unsplash.com/photo-..."
-                  className="w-full p-2.5 bg-stone-50 border border-stone-250 focus:outline-none focus:border-[#593622] rounded-lg font-semibold"
-                />
+              {/* Direct image input options cards */}
+              <div className="space-y-2">
+                <span className="block text-[10px] font-bold text-stone-700 tracking-wider uppercase">Capture &amp; Upload Options</span>
+                
+                <div className="grid grid-cols-1 gap-2">
+                  {/* Local Browse Button */}
+                  <div className="flex gap-2">
+                    <label className="flex-1 bg-stone-50 border border-stone-300 rounded-xl p-2.5 flex items-center justify-center gap-2 hover:border-[#593622] hover:bg-stone-100/50 cursor-pointer shadow-3xs font-extrabold text-[11px] text-stone-800 transition">
+                      <UploadCloud size={14} className="text-[#593622]" />
+                      <span>PC/Mobile File</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLocalFileUpload}
+                        className="hidden"
+                      />
+                    </label>
+
+                    {/* Direct mobile camera capture */}
+                    <label className="flex-1 bg-[#593622] text-white rounded-xl p-2.5 flex items-center justify-center gap-2 hover:bg-[#402414] cursor-pointer shadow-3xs font-black uppercase text-[11px] tracking-wider transition">
+                      <Camera size={14} />
+                      <span>Mobile Cam</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handleLocalFileUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+
+                  {/* Realtime webcam capturing */}
+                  {!isWebcamActive ? (
+                    <button
+                      type="button"
+                      onClick={startWebcam}
+                      className="w-full bg-stone-100 border border-stone-250 hover:bg-stone-150 text-stone-700 font-bold text-[11px] uppercase tracking-wider p-2.5 rounded-xl flex items-center justify-center gap-2 transition"
+                    >
+                      <Video size={14} className="text-[#593622]" />
+                      <span>Start Live Viewfinder</span>
+                    </button>
+                  ) : (
+                    <div className="bg-stone-950 rounded-xl overflow-hidden relative border border-stone-900 aspect-video flex flex-col justify-end">
+                      {webcamError ? (
+                        <div className="p-3 text-[10px] text-red-400 font-bold text-center flex flex-col items-center justify-center h-full">
+                          <span>{webcamError}</span>
+                          <button
+                            type="button"
+                            onClick={stopWebcam}
+                            className="mt-2 p-1 px-3 bg-white text-stone-900 rounded-lg text-[9px] uppercase font-black"
+                          >
+                            Dismiss
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            className="absolute inset-0 object-cover w-full h-full scale-x-[-1]"
+                          />
+                          <div className="absolute top-2 right-2 bg-black/65 p-0.5 px-2 rounded-md font-mono text-[9px] text-stone-300 font-bold tracking-widest animate-pulse flex items-center gap-1 select-none">
+                            <span className="h-1.5 w-1.5 bg-red-600 rounded-full inline-block" /> LIVE
+                          </div>
+                          <div className="absolute bottom-2 left-2 right-2 flex gap-1.5 z-10">
+                            <button
+                              type="button"
+                              onClick={captureSnapshot}
+                              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-lg font-black uppercase text-[10px] tracking-wider shadow"
+                            >
+                              📸 SNAP &amp; UPLOAD
+                            </button>
+                            <button
+                              type="button"
+                              onClick={stopWebcam}
+                              className="bg-red-700 hover:bg-red-800 text-white p-2 px-3 rounded-lg font-bold text-[10px] uppercase shadow"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="bg-amber-50 p-2.5 rounded-lg border border-amber-200 text-[10px] text-amber-900 leading-normal">
-                Quick Preset: Paste <code className="bg-white p-0.5 font-bold font-mono text-[9px]">https://images.unsplash.com/photo-1595428774223-ef52624120d2</code>
-              </div>
+              {/* URL paste fallback */}
+              <details className="group bg-stone-50 border border-stone-250/70 rounded-xl overflow-hidden text-xs">
+                <summary className="p-2 font-bold text-stone-500 hover:text-stone-800 cursor-pointer select-none flex items-center justify-between text-[10px] uppercase tracking-wide">
+                  <span>🔗 Paste picture link</span>
+                  <span className="group-open:rotate-180 transition-transform">▼</span>
+                </summary>
+                
+                <div className="p-3 border-t bg-stone-100/50 space-y-2.5">
+                  <input
+                    type="text"
+                    value={newImgUrl}
+                    onChange={(e) => setNewImgUrl(e.target.value)}
+                    placeholder="https://images.unsplash.com/photo-..."
+                    className="w-full p-2 bg-white border border-stone-250 focus:outline-none focus:border-[#593622] rounded-lg font-semibold text-stone-850"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setNewImgUrl('https://images.unsplash.com/photo-1595428774223-ef52624120d2')}
+                      className="p-1 px-2.5 bg-white border rounded text-[9px] font-bold text-stone-700 active:bg-stone-50"
+                    >
+                      Use preset
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAddImage}
+                      className="ml-auto bg-[#593622] text-white hover:bg-[#402414] px-4 py-1 font-black text-[10px] uppercase rounded-lg shadow transition"
+                    >
+                      Append URL Link
+                    </button>
+                  </div>
+                </div>
+              </details>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 text-xs">
+            <div className="flex justify-end gap-2 pt-2 border-t text-xs">
               <button
-                onClick={() => setShowImgModal(false)}
+                onClick={() => {
+                  stopWebcam();
+                  setShowImgModal(false);
+                }}
                 className="px-3.5 py-1.5 rounded-lg border text-stone-500 font-bold hover:bg-stone-50"
               >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddImage}
-                className="bg-[#593622] text-white hover:bg-[#402414] font-bold px-3.5 py-1.5 rounded-lg shadow-sm"
-              >
-                Append Photo
+                Close form
               </button>
             </div>
           </div>

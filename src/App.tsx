@@ -15,7 +15,8 @@ import {
   saveCustomerToFirebase,
   saveStatusLogToFirebase,
   savePaymentToFirebase,
-  saveUserToFirebase
+  saveUserToFirebase,
+  deleteUserFromFirebase
 } from './db/firebaseService';
 
 // Component imports
@@ -122,7 +123,18 @@ export default function App() {
 
   // Trigger login from screen
   const handleLoginSuccess = (matched: User) => {
-    setCurrentUser(matched);
+    const timeString = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const dateString = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+    const updatedUser: User = {
+      ...matched,
+      last_seen: `Today, ${timeString} (${dateString})`
+    };
+
+    saveUserToFirebase(updatedUser).catch((err) => {
+      console.error("Failed to update last_seen in Firestore:", err);
+    });
+
+    setCurrentUser(updatedUser);
     if (matched.role === 'admin') {
       setCurrentTab('dashboard');
     } else {
@@ -239,22 +251,42 @@ export default function App() {
     saveUserToFirebase(updatedUser);
   };
 
+  const handleDeleteUser = (userId: string) => {
+    const updatedUsers = db.users.filter((u) => u.id !== userId);
+    updateDbState({
+      ...db,
+      users: updatedUsers,
+    });
+
+    // Logout if user deletes their own current session account
+    if (currentUser && currentUser.id === userId) {
+      handleLogout();
+    }
+
+    deleteUserFromFirebase(userId).catch(console.error);
+  };
+
   // Nav to specific order details tab
   const handleViewOrder = (orderId: string) => {
     setSelectedOrderId(orderId);
     setCurrentTab('order_details');
   };
 
+  // Production Flag to show/hide Sandbox Simulation controls
+  const SHOW_DEBUG_HUD = false;
+
   // If logged out entirely, render promotional Login Screen
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-stone-100/50 relative">
-        <SimulationHUD
-          users={db.users}
-          currentUser={null}
-          onUserChange={handleHUDUserSwitch}
-          onReset={handleResetDB}
-        />
+        {SHOW_DEBUG_HUD && (
+          <SimulationHUD
+            users={db.users}
+            currentUser={null}
+            onUserChange={handleHUDUserSwitch}
+            onReset={handleResetDB}
+          />
+        )}
         <div className="mx-auto transition-all" style={{ maxWidth: simWidth }}>
           <LoginScreen onLoginSuccess={handleLoginSuccess} users={db.users} />
         </div>
@@ -268,12 +300,14 @@ export default function App() {
     <div className="min-h-screen bg-stone-100 flex flex-col relative transition-all duration-300">
       
       {/* Simulation HUD (Sandbox Controls) */}
-      <SimulationHUD
-        users={db.users}
-        currentUser={currentUser}
-        onUserChange={handleHUDUserSwitch}
-        onReset={handleResetDB}
-      />
+      {SHOW_DEBUG_HUD && (
+        <SimulationHUD
+          users={db.users}
+          currentUser={currentUser}
+          onUserChange={handleHUDUserSwitch}
+          onReset={handleResetDB}
+        />
+      )}
 
       {/* Main Sandbox limits wrapper */}
       <div className="mx-auto w-full transition-all duration-300 flex-1 flex flex-col lg:flex-row" style={{ maxWidth: simWidth }}>
@@ -430,6 +464,7 @@ export default function App() {
                 users={db.users}
                 onAddUser={handleAddUser}
                 onUpdateUser={handleUpdateUser}
+                onDeleteUser={handleDeleteUser}
                 currentUser={currentUser}
               />
             </motion.div>

@@ -6,19 +6,46 @@
 import React from 'react';
 import { User, UserRole } from '../types';
 import { generateUUID } from '../db/store';
-import { Users, Filter, PlusCircle, Search, Edit2, ShieldAlert, Power, Check, X } from 'lucide-react';
+import { 
+  Users, 
+  Filter, 
+  PlusCircle, 
+  Search, 
+  Edit2, 
+  ShieldAlert, 
+  Power, 
+  Check, 
+  X,
+  ShieldCheck,
+  Key,
+  Mail,
+  Lock,
+  Compass,
+  CheckCircle2,
+  Trash2
+} from 'lucide-react';
 
 interface UsersTabProps {
   users: User[];
   onAddUser: (user: User) => void;
   onUpdateUser: (updatedUser: User) => void;
+  onDeleteUser: (userId: string) => void;
   currentUser: User;
 }
 
-export default function UsersTab({ users, onAddUser, onUpdateUser, currentUser }: UsersTabProps) {
+export default function UsersTab({ users, onAddUser, onUpdateUser, onDeleteUser, currentUser }: UsersTabProps) {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [roleFilter, setRoleFilter] = React.useState<string>('All Roles');
   const [statusFilter, setStatusFilter] = React.useState<string>('All Statuses');
+  const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(null);
+
+  // Auto-reset user deletion confirmation after 4 seconds
+  React.useEffect(() => {
+    if (confirmDeleteId) {
+      const timer = setTimeout(() => setConfirmDeleteId(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [confirmDeleteId]);
 
   // Modular user model edits
   const [editingUser, setEditingUser] = React.useState<User | null>(null);
@@ -30,6 +57,8 @@ export default function UsersTab({ users, onAddUser, onUpdateUser, currentUser }
   const [userRole, setUserRole] = React.useState<UserRole>('carpenter');
   const [initials, setInitials] = React.useState('');
   const [isActive, setIsActive] = React.useState(true);
+  const [userPassword, setUserPassword] = React.useState('admin');
+  const [isGoogleLinked, setIsGoogleLinked] = React.useState(false);
 
   // Compute metric cards
   const totalUsers = users.length;
@@ -61,6 +90,8 @@ export default function UsersTab({ users, onAddUser, onUpdateUser, currentUser }
     setUserRole(u.role);
     setInitials(u.initials);
     setIsActive(u.is_active);
+    setUserPassword(u.password || 'admin');
+    setIsGoogleLinked(u.google_linked || false);
     setShowAddModal(false);
   };
 
@@ -71,6 +102,8 @@ export default function UsersTab({ users, onAddUser, onUpdateUser, currentUser }
     setUserRole('carpenter');
     setInitials('');
     setIsActive(true);
+    setUserPassword('admin');
+    setIsGoogleLinked(false);
     setShowAddModal(true);
   };
 
@@ -96,6 +129,8 @@ export default function UsersTab({ users, onAddUser, onUpdateUser, currentUser }
       last_seen: 'Never active yet',
       created_at: new Date().toISOString(),
       created_by: currentUser.id,
+      password: userPassword.trim() || 'admin',
+      google_linked: isGoogleLinked || userEmail.trim().toLowerCase().endsWith('@gmail.com'),
     };
 
     onAddUser(newUser);
@@ -119,6 +154,8 @@ export default function UsersTab({ users, onAddUser, onUpdateUser, currentUser }
       role: userRole,
       initials: initials.trim().toUpperCase(),
       is_active: isActive,
+      password: userPassword.trim() || 'admin',
+      google_linked: isGoogleLinked || userEmail.trim().toLowerCase().endsWith('@gmail.com'),
     };
 
     onUpdateUser(updated);
@@ -237,6 +274,7 @@ export default function UsersTab({ users, onAddUser, onUpdateUser, currentUser }
                 <th className="py-3 px-4">Email Address</th>
                 <th className="py-3 px-4">Role Designation</th>
                 <th className="py-3 px-4 text-center">Serials Initials</th>
+                <th className="py-3 px-4 text-center">Password / Passcode</th>
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4">Last Seen</th>
                 <th className="py-3 px-4 text-right">Actions</th>
@@ -270,6 +308,11 @@ export default function UsersTab({ users, onAddUser, onUpdateUser, currentUser }
                     </span>
                   </td>
                   <td className="py-3.5 px-4 font-mono font-bold text-stone-800 text-center">{user.initials}</td>
+                  <td className="py-3.5 px-4 text-center">
+                    <span className="bg-amber-50/60 font-mono text-amber-900 px-2 py-1 rounded font-bold text-[11px] select-all border border-amber-200/45 shadow-3xs hover:border-[#593622] transition">
+                      {user.password || 'admin'}
+                    </span>
+                  </td>
                   <td className="py-3.5 px-4">
                     {user.is_active ? (
                       <span className="text-green-700 font-bold inline-flex items-center gap-1 text-[11px]">
@@ -283,13 +326,44 @@ export default function UsersTab({ users, onAddUser, onUpdateUser, currentUser }
                   </td>
                   <td className="py-3.5 px-4 font-mono text-stone-400 text-[10px]">{user.last_seen || 'Not logged recently'}</td>
                   <td className="py-3.5 px-4 text-right shrink-0">
-                    <button
-                      onClick={() => handleEditClick(user)}
-                      className="bg-stone-100 hover:bg-[#593622] hover:text-white p-1.5 rounded-lg text-stone-600 transition"
-                      title="Edit Profile specifications"
-                    >
-                      <Edit2 size={12} strokeWidth={2.5} />
-                    </button>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        onClick={() => handleEditClick(user)}
+                        className="bg-stone-100 hover:bg-[#593622] hover:text-white p-1.5 rounded-lg text-stone-600 transition"
+                        title="Edit Profile specifications"
+                      >
+                        <Edit2 size={12} strokeWidth={2.5} />
+                      </button>
+
+                      {confirmDeleteId === user.id ? (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => {
+                              onDeleteUser(user.id);
+                              setConfirmDeleteId(null);
+                            }}
+                            className="bg-rose-600 hover:bg-rose-700 text-white font-mono px-2 py-1 text-[9px] font-black rounded uppercase shadow-sm cursor-pointer transition whitespace-nowrap"
+                            title="Confirm delete account credentials"
+                          >
+                            Delete
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="bg-stone-100 hover:bg-stone-200 text-stone-600 px-2 py-1 text-[9px] font-bold rounded uppercase cursor-pointer transition whitespace-nowrap"
+                          >
+                            No
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDeleteId(user.id)}
+                          className="bg-rose-50 hover:bg-rose-600 hover:text-white p-1.5 rounded-lg text-rose-600 transition cursor-pointer"
+                          title="Delete User Credentials"
+                        >
+                          <Trash2 size={12} strokeWidth={2.5} />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -370,6 +444,34 @@ export default function UsersTab({ users, onAddUser, onUpdateUser, currentUser }
                 </div>
               </div>
 
+              {/* Added Passcode input and Google-link checkbox fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-stone-100 pt-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-stone-600 tracking-wider uppercase mb-1 font-sans">Workshop Passcode / Pass *</label>
+                  <input
+                    type="text"
+                    required
+                    value={userPassword}
+                    onChange={(e) => setUserPassword(e.target.value)}
+                    placeholder="e.g. carpenter123"
+                    className="w-full px-3 py-2 bg-stone-50 border border-stone-250 focus:outline-none focus:border-[#593622] rounded-xl font-semibold"
+                  />
+                </div>
+
+                <div className="flex items-center gap-1.5 select-none pt-4">
+                  <input
+                    type="checkbox"
+                    id="isGoogleLinkedToggle"
+                    checked={isGoogleLinked}
+                    onChange={() => setIsGoogleLinked(!isGoogleLinked)}
+                    className="h-4 w-4 text-amber-600 rounded border-stone-300 focus:ring-amber-500 cursor-pointer"
+                  />
+                  <label htmlFor="isGoogleLinkedToggle" className="font-bold text-stone-600 font-sans cursor-pointer text-[11px] leading-tight select-none">
+                    Google SSO Linked Account
+                  </label>
+                </div>
+              </div>
+
               {editingUser && (
                 <div className="flex items-center gap-2 select-none border-t border-stone-100 pt-3">
                   <input
@@ -407,6 +509,203 @@ export default function UsersTab({ users, onAddUser, onUpdateUser, currentUser }
           </div>
         </div>
       )}
+
+      {/* NEW SUB-SECTION: ADMIN MANAGES GOOGLE AC OR LOGINS OF CARPENTERS, POLISH PERSONS & WORKERS */}
+      <div className="bg-white rounded-2xl border border-stone-200/80 shadow-xs p-6 space-y-6 text-left" style={{ contentVisibility: 'auto' }}>
+        <div className="flex justify-between items-center flex-wrap gap-2 border-b border-stone-100 pb-3">
+          <div>
+            <h3 className="text-sm font-black uppercase tracking-wider text-stone-900 flex items-center gap-1.5">
+              <ShieldCheck className="text-green-700 shrink-0" size={16} />
+              <span>Google SSO &amp; Artisan Credentials alignment</span>
+            </h3>
+            <p className="text-[11px] text-stone-500 mt-0.5">Configure authorized Google Mail accounts and specific passcodes for carpenters, polish persons and other workers.</p>
+          </div>
+
+          <span className="bg-green-50 text-green-700 font-mono text-[9px] font-black uppercase px-2 py-0.5 rounded border border-green-200">
+            Secure Auth Sync
+          </span>
+        </div>
+
+        {/* Dynamic credential mappings grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          
+          {/* Mapped Admin Row */}
+          <div className="bg-[#fbfcfa] border border-stone-200 rounded-xl p-4 space-y-3 shadow-3xs hover:border-[#593622] transition">
+            <div className="flex justify-between items-start">
+              <span className="bg-rose-50 text-rose-700 border border-rose-200/50 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">
+                Admin Managers
+              </span>
+              <span className="text-[10px] text-stone-400 font-mono">Mapped: {users.filter(u => u.role === 'admin').length}</span>
+            </div>
+
+            <div className="space-y-1 text-xs">
+              <div className="flex justify-between text-stone-500">
+                <span>Core Login Email:</span>
+                <strong className="text-stone-850 truncate max-w-[130px]" title="admin@bhises@gmail.com">admin@bhises@gmail.com</strong>
+              </div>
+              <div className="flex justify-between text-stone-500">
+                <span>Default Passcode:</span>
+                <strong className="text-stone-850 font-mono">admin123</strong>
+              </div>
+              <div className="flex justify-between text-stone-500">
+                <span>Google Link Status:</span>
+                <span className="text-green-700 font-bold flex items-center gap-0.5 text-[10px]">
+                  <CheckCircle2 size={10} /> Enabled
+                </span>
+              </div>
+            </div>
+
+            <button 
+              type="button"
+              onClick={() => {
+                const adminUser = users.find(u => u.email === 'admin@bhises@gmail.com');
+                if (adminUser) {
+                  handleEditClick(adminUser);
+                } else {
+                  startAddNewUser();
+                  setUserEmail('admin@bhises@gmail.com');
+                  setUserRole('admin');
+                  setInitials('BA');
+                  setUserPassword('admin123');
+                  setIsGoogleLinked(true);
+                }
+              }}
+              className="w-full bg-stone-100 hover:bg-stone-200 text-stone-700 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider text-center transition"
+            >
+              {users.some(u => u.email === 'admin@bhises@gmail.com') ? 'Edit Admin Identity' : 'Seed Example Identity'}
+            </button>
+          </div>
+
+          {/* Mapped Carpenters Row */}
+          <div className="bg-[#fbfcfa] border border-stone-200 rounded-xl p-4 space-y-3 shadow-3xs hover:border-[#593622] transition">
+            <div className="flex justify-between items-start">
+              <span className="bg-amber-50 text-amber-800 border border-amber-200/50 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">
+                artisan carpenters
+              </span>
+              <span className="text-[10px] text-stone-400 font-mono">Mapped: {users.filter(u => u.role === 'carpenter').length}</span>
+            </div>
+
+            <div className="space-y-1 text-xs">
+              <div className="flex justify-between text-stone-500">
+                <span>Core Login Email:</span>
+                <strong className="text-stone-850 truncate max-w-[130px]" title="amit@gmail.com">amit@gmail.com</strong>
+              </div>
+              <div className="flex justify-between text-stone-500">
+                <span>Default Passcode:</span>
+                <strong className="text-stone-850 font-mono">carpenter123</strong>
+              </div>
+              <div className="flex justify-between text-stone-500">
+                <span>Google Link Status:</span>
+                <span className="text-green-700 font-bold flex items-center gap-0.5 text-[10px]">
+                  <CheckCircle2 size={10} /> Enabled
+                </span>
+              </div>
+            </div>
+
+            <button 
+              type="button"
+              onClick={() => {
+                const carpUser = users.find(u => u.email === 'amit@gmail.com');
+                if (carpUser) {
+                  handleEditClick(carpUser);
+                } else {
+                  startAddNewUser();
+                  setUserEmail('amit@gmail.com');
+                  setUserRole('carpenter');
+                  setInitials('AK');
+                  setUserPassword('carpenter123');
+                  setIsGoogleLinked(true);
+                }
+              }}
+              className="w-full bg-stone-100 hover:bg-stone-200 text-stone-700 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider text-center transition"
+            >
+              {users.some(u => u.email === 'amit@gmail.com') ? 'Edit Carpenter Identity' : 'Seed Example Identity'}
+            </button>
+          </div>
+
+          {/* Mapped Polish Persons Row */}
+          <div className="bg-[#fbfcfa] border border-stone-200 rounded-xl p-4 space-y-3 shadow-3xs hover:border-[#593622] transition">
+            <div className="flex justify-between items-start">
+              <span className="bg-teal-50 text-teal-800 border border-teal-200/50 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">
+                polish persons
+              </span>
+              <span className="text-[10px] text-stone-400 font-mono">Mapped: {users.filter(u => u.role === 'polish_person').length}</span>
+            </div>
+
+            <div className="space-y-1 text-xs">
+              <div className="flex justify-between text-stone-500">
+                <span>Core Login Email:</span>
+                <strong className="text-stone-850 truncate max-w-[130px]" title="mahesh@gmail.com">mahesh@gmail.com</strong>
+              </div>
+              <div className="flex justify-between text-stone-500">
+                <span>Default Passcode:</span>
+                <strong className="text-stone-850 font-mono">polishperson123</strong>
+              </div>
+              <div className="flex justify-between text-stone-500">
+                <span>Google Link Status:</span>
+                <span className="text-green-700 font-bold flex items-center gap-0.5 text-[10px]">
+                  <CheckCircle2 size={10} /> Enabled
+                </span>
+              </div>
+            </div>
+
+            <button 
+              type="button"
+              onClick={() => {
+                const polishUser = users.find(u => u.email === 'mahesh@gmail.com');
+                if (polishUser) {
+                  handleEditClick(polishUser);
+                } else {
+                  startAddNewUser();
+                  setUserEmail('mahesh@gmail.com');
+                  setUserRole('polish_person');
+                  setInitials('MK');
+                  setUserPassword('polishperson123');
+                  setIsGoogleLinked(true);
+                }
+              }}
+              className="w-full bg-stone-100 hover:bg-stone-200 text-stone-700 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider text-center transition"
+            >
+              {users.some(u => u.email === 'mahesh@gmail.com') ? 'Edit Polish Identity' : 'Seed Example Identity'}
+            </button>
+          </div>
+
+        </div>
+
+        {/* Dynamic mappings checklist log of all accounts with passwords defined to give transparency */}
+        <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 space-y-3">
+          <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest block font-mono">
+            active credentials &amp; google login directory
+          </span>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+            {users.map((u) => (
+              <div 
+                key={u.id}
+                className="bg-white border border-stone-200/70 rounded-lg p-2.5 flex items-center justify-between gap-2.5"
+              >
+                <div className="min-w-0">
+                  <span className="font-extrabold text-[11px] text-stone-850 block truncate leading-none">
+                    {u.name}
+                  </span>
+                  <span className="text-[9px] text-stone-400 font-mono truncate block mt-0.5">
+                    {u.email}
+                  </span>
+                </div>
+                <div className="shrink-0 flex items-center gap-1">
+                  <span className="px-1 text-[8px] font-bold tracking-tight bg-stone-100 text-stone-600 rounded">
+                    {u.password || 'admin'}
+                  </span>
+                  {u.google_linked && (
+                    <span className="h-2 w-2 rounded-full bg-blue-600 border" title="Linked to Google sign-in" />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }

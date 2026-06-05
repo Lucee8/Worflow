@@ -136,6 +136,66 @@
         "created_by",
         "created_at"
       ]
+    },
+    "mrp_hardware": {
+      "title": "Hardware Material",
+      "description": "Hardware items master list in the Material Requirement Planning dashboard",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "available_stock": { "type": "number" },
+        "reserved_stock": { "type": "number" },
+        "unit": { "type": "string" },
+        "low_threshold": { "type": "number" },
+        "unit_cost": { "type": "number" },
+        "supplier": { "type": "string" }
+      },
+      "required": ["id", "name", "category", "available_stock", "reserved_stock", "unit", "low_threshold", "unit_cost"]
+    },
+    "mrp_wood": {
+      "title": "Wood Board Material",
+      "description": "Wood/timber items master list in the Material Requirement Planning dashboard",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "thickness": { "type": "string" },
+        "grade": { "type": "string" },
+        "available_stock": { "type": "number" },
+        "reserved_stock": { "type": "number" },
+        "unit": { "type": "string" },
+        "low_threshold": { "type": "number" },
+        "unit_cost": { "type": "number" },
+        "supplier": { "type": "string" }
+      },
+      "required": ["id", "name", "category", "thickness", "grade", "available_stock", "reserved_stock", "unit", "low_threshold", "unit_cost"]
+    },
+    "mrp_consumption_logs": {
+      "title": "Consumption Log",
+      "description": "Audit trails logging manual or automated consumption of woodwork inventory items",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "itemName": { "type": "string" },
+        "quantityConsumed": { "type": "number" },
+        "unit": { "type": "string" },
+        "orderArticleNo": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "itemName", "quantityConsumed", "unit", "orderArticleNo", "timestamp"]
+    },
+    "mrp_project_boms": {
+      "title": "Project BOM",
+      "description": "Bill of Materials (BOM) custom lists allocated per order project",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "items": { "type": "array" }
+      },
+      "required": ["projectId", "items"]
     }
   },
   "firestore": {
@@ -162,6 +222,22 @@
     "/payments/{paymentId}": {
       "schema": "payment",
       "description": "Ledger directory storing advance deposit balances and structural prices per order"
+    },
+    "/mrp_hardware/{itemId}": {
+      "schema": "mrp_hardware",
+      "description": "Master list directory storing technical or decorative hardware items"
+    },
+    "/mrp_wood/{itemId}": {
+      "schema": "mrp_wood",
+      "description": "Master list directory storing high-end timber, plywood woods and board varieties"
+    },
+    "/mrp_consumption_logs/{logId}": {
+      "schema": "mrp_consumption_logs",
+      "description": "Audit trails storing consumption events"
+    },
+    "/mrp_project_boms/{projectId}": {
+      "schema": "mrp_project_boms",
+      "description": "Store custom Bill Of Materials lists per active custom order project"
     }
   }
 }

@@ -27,6 +27,8 @@ import {
   TrendingDown
 } from 'lucide-react';
 import { Order, Customer, StatusLog } from '../types';
+import { db, handleFirestoreError, OperationType } from '../db/firebase';
+import { collection, doc, setDoc, onSnapshot, writeBatch } from 'firebase/firestore';
 
 // Types representing master inventory items
 interface HardwareItem {
@@ -132,28 +134,13 @@ interface MaterialRequirementPlanningProps {
 }
 
 export default function MaterialRequirementPlanning({ selectedOrderId, orders, customers = [], onOrderUpdate }: MaterialRequirementPlanningProps) {
-  // Navigation tabs: 'dashboard', 'hardware', 'wood', 'planner', 'consumption'
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'hardware' | 'wood' | 'planner'>('dashboard');
+  // Navigation tabs: 'dashboard', 'hardware', 'wood', 'consumption'
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'hardware' | 'wood'>('dashboard');
 
-  // Master databases with local persistence
-  const [hardwareInventory, setHardwareInventory] = useState<HardwareItem[]>(() => {
-    const saved = localStorage.getItem('mrp_hardware_v2');
-    return saved ? JSON.parse(saved) : PRESEEDED_HARDWARE;
-  });
-
-  const [woodInventory, setWoodInventory] = useState<WoodItem[]>(() => {
-    const saved = localStorage.getItem('mrp_wood_v2');
-    return saved ? JSON.parse(saved) : PRESEEDED_WOOD;
-  });
-
-  const [consumptionLogs, setConsumptionLogs] = useState<ConsumptionLog[]>(() => {
-    const saved = localStorage.getItem('mrp_consumption_logs');
-    return saved ? JSON.parse(saved) : [
-      { id: 'c_1', itemName: 'Century Premium Waterproof Marine Plywood', quantityConsumed: 4, unit: 'sheets', orderArticleNo: 'ORD-5412', timestamp: '2026-06-01 14:10' },
-      { id: 'c_2', itemName: 'Concealed Soft-Close Hinges 3D (Clip-on)', quantityConsumed: 12, unit: 'pcs', orderArticleNo: 'ORD-5412', timestamp: '2026-06-01 14:15' },
-      { id: 'c_3', itemName: 'Nagpur Teak Wood Square Rough Logs', quantityConsumed: 3.5, unit: 'CFT', orderArticleNo: 'ORD-9021', timestamp: '2026-05-28 11:40' }
-    ];
-  });
+  // Master databases loaded from Firestore in real-time
+  const [hardwareInventory, setHardwareInventory] = useState<HardwareItem[]>([]);
+  const [woodInventory, setWoodInventory] = useState<WoodItem[]>([]);
+  const [consumptionLogs, setConsumptionLogs] = useState<ConsumptionLog[]>([]);
 
   // Current active project chosen for BOM allocation
   const [activeProjectId, setActiveProjectId] = useState<string>(selectedOrderId || (orders.length > 0 ? orders[0].id : ''));
@@ -173,72 +160,155 @@ export default function MaterialRequirementPlanning({ selectedOrderId, orders, c
     name: '', category: 'Plywood', thickness: '18mm', grade: 'IS:710', available_stock: 10, reserved_stock: 0, unit: 'sheets', low_threshold: 3, unit_cost: 2200, supplier: ''
   });
 
-  // Save changes to localStorage
+  // real-time sync with firestore
   useEffect(() => {
-    localStorage.setItem('mrp_hardware_v2', JSON.stringify(hardwareInventory));
-  }, [hardwareInventory]);
+    const unsubHardware = onSnapshot(
+      collection(db, 'mrp_hardware'),
+      async (snapshot) => {
+        if (snapshot.empty) {
+          console.log("Seeding mrp_hardware collection in Firestore...");
+          const batch = writeBatch(db);
+          for (const item of PRESEEDED_HARDWARE) {
+            batch.set(doc(db, 'mrp_hardware', item.id), item);
+          }
+          await batch.commit().catch(err => console.error("Hardware seed failed", err));
+        } else {
+          const items = snapshot.docs.map(doc => doc.data() as HardwareItem);
+          setHardwareInventory(items);
+        }
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.GET, 'mrp_hardware');
+      }
+    );
 
-  useEffect(() => {
-    localStorage.setItem('mrp_wood_v2', JSON.stringify(woodInventory));
-  }, [woodInventory]);
+    const unsubWood = onSnapshot(
+      collection(db, 'mrp_wood'),
+      async (snapshot) => {
+        if (snapshot.empty) {
+          console.log("Seeding mrp_wood collection in Firestore...");
+          const batch = writeBatch(db);
+          for (const item of PRESEEDED_WOOD) {
+            batch.set(doc(db, 'mrp_wood', item.id), item);
+          }
+          await batch.commit().catch(err => console.error("Wood seed failed", err));
+        } else {
+          const items = snapshot.docs.map(doc => doc.data() as WoodItem);
+          setWoodInventory(items);
+        }
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.GET, 'mrp_wood');
+      }
+    );
 
-  useEffect(() => {
-    localStorage.setItem('mrp_consumption_logs', JSON.stringify(consumptionLogs));
-  }, [consumptionLogs]);
+    const unsubLogs = onSnapshot(
+      collection(db, 'mrp_consumption_logs'),
+      async (snapshot) => {
+        if (snapshot.empty) {
+          console.log("Seeding mrp_consumption_logs collection in Firestore...");
+          const batch = writeBatch(db);
+          const initialLogs: ConsumptionLog[] = [
+            { id: 'c_1', itemName: 'Century Premium Waterproof Marine Plywood', quantityConsumed: 4, unit: 'sheets', orderArticleNo: 'ORD-5412', timestamp: '2026-06-01 14:10' },
+            { id: 'c_2', itemName: 'Concealed Soft-Close Hinges 3D (Clip-on)', quantityConsumed: 12, unit: 'pcs', orderArticleNo: 'ORD-5412', timestamp: '2026-06-01 14:15' },
+            { id: 'c_3', itemName: 'Nagpur Teak Wood Square Rough Logs', quantityConsumed: 3.5, unit: 'CFT', orderArticleNo: 'ORD-9021', timestamp: '2026-05-28 11:40' }
+          ];
+          for (const log of initialLogs) {
+            batch.set(doc(db, 'mrp_consumption_logs', log.id), log);
+          }
+          await batch.commit().catch(err => console.error("Logs seed failed", err));
+        } else {
+          const logs = snapshot.docs.map(doc => doc.data() as ConsumptionLog);
+          logs.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+          setConsumptionLogs(logs);
+        }
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.GET, 'mrp_consumption_logs');
+      }
+    );
+
+    return () => {
+      unsubHardware();
+      unsubWood();
+      unsubLogs();
+    };
+  }, []);
 
   // Sync external order selection
   useEffect(() => {
     if (selectedOrderId) {
       setActiveProjectId(selectedOrderId);
-      setActiveTab('planner');
     }
   }, [selectedOrderId]);
 
-  // Dynamic BOM Loader on selecting a different order/project
+  // Dynamic BOM Loader from Firestore with automatic fallback + initial seed
   useEffect(() => {
     if (!activeProjectId) return;
     const project = orders.find(o => o.id === activeProjectId);
     if (!project) return;
 
-    // Load custom project list from local storage or fallback to dynamic classification presets
-    const savedBOMKey = `mrp_bom_project_${activeProjectId}`;
-    const savedBOM = localStorage.getItem(savedBOMKey);
-    if (savedBOM) {
-      setSelectedProjectBOM(JSON.parse(savedBOM));
-      return;
-    }
+    const savedBOMKey = activeProjectId;
+    const unsubBOM = onSnapshot(
+      doc(db, 'mrp_project_boms', savedBOMKey),
+      async (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          if (data && data.items) {
+            setSelectedProjectBOM(data.items);
+          }
+        } else {
+          // fallback mapping category names or items to appropriate templates
+          const sub = (project.sub_category || '').toLowerCase();
+          const cat = (project.category || '').toLowerCase();
+          let key = 'bed';
 
-    // fallback mapping category names or items to appropriate templates
-    const sub = (project.sub_category || '').toLowerCase();
-    const cat = (project.category || '').toLowerCase();
-    let key = 'bed';
+          if (sub.includes('cabinet') || sub.includes('wardrobe') || sub.includes('almirah') || cat.includes('kitchen')) {
+            key = 'wardrobe';
+          } else if (sub.includes('table') || sub.includes('desk') || sub.includes('dining')) {
+            key = 'table';
+          } else if (sub.includes('sofa') || sub.includes('chair') || sub.includes('couch')) {
+            key = 'sofa';
+          }
 
-    if (sub.includes('cabinet') || sub.includes('wardrobe') || sub.includes('almirah') || cat.includes('kitchen')) {
-      key = 'wardrobe';
-    } else if (sub.includes('table') || sub.includes('desk') || sub.includes('dining')) {
-      key = 'table';
-    } else if (sub.includes('sofa') || sub.includes('chair') || sub.includes('couch')) {
-      key = 'sofa';
-    }
+          const matchedTemplate = BOM_PRESETS[key] || BOM_PRESETS.bed;
+          const initialBOM: ProjectBOMItem[] = matchedTemplate.map((item, idx) => ({
+            id: `${item.type}_item_${idx}`,
+            name: item.name,
+            type: item.type,
+            required_qty: item.required_qty,
+            unit: item.unit
+          }));
 
-    const matchedTemplate = BOM_PRESETS[key] || BOM_PRESETS.bed;
-    const initialBOM: ProjectBOMItem[] = matchedTemplate.map((item, idx) => ({
-      id: `${item.type}_item_${idx}`,
-      name: item.name,
-      type: item.type,
-      required_qty: item.required_qty,
-      unit: item.unit
-    }));
+          setSelectedProjectBOM(initialBOM);
+          await setDoc(doc(db, 'mrp_project_boms', savedBOMKey), {
+            projectId: savedBOMKey,
+            items: initialBOM
+          }).catch(err => handleFirestoreError(err, OperationType.WRITE, `mrp_project_boms/${savedBOMKey}`));
+        }
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.GET, `mrp_project_boms/${savedBOMKey}`);
+      }
+    );
 
-    setSelectedProjectBOM(initialBOM);
-    localStorage.setItem(savedBOMKey, JSON.stringify(initialBOM));
+    return () => {
+      unsubBOM();
+    };
   }, [activeProjectId, orders]);
 
-  // Save changes back to local project storage
-  const saveActiveProjectBOM = (updatedBOM: ProjectBOMItem[]) => {
+  // Save changes back to Firestore project storage
+  const saveActiveProjectBOM = async (updatedBOM: ProjectBOMItem[]) => {
     setSelectedProjectBOM(updatedBOM);
     if (activeProjectId) {
-      localStorage.setItem(`mrp_bom_project_${activeProjectId}`, JSON.stringify(updatedBOM));
+      try {
+        await setDoc(doc(db, 'mrp_project_boms', activeProjectId), {
+          projectId: activeProjectId,
+          items: updatedBOM
+        });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, `mrp_project_boms/${activeProjectId}`);
+      }
     }
   };
 
@@ -318,115 +388,103 @@ export default function MaterialRequirementPlanning({ selectedOrderId, orders, c
 
   // AUTO DEDUCTION MECHANICS
   // Automatic stock subtraction after production completion
-  const handleAutomaticDeduction = () => {
+  const handleAutomaticDeduction = async () => {
     const activeProject = orders.find(o => o.id === activeProjectId);
     const orderNo = activeProject?.article_no || 'Walk-In';
 
-    // Verify if we have registered logs
-    let logsToAdd: ConsumptionLog[] = [];
-
-    // Deduct stock from state databases
-    let updatedHardware = [...hardwareInventory];
-    let updatedWood = [...woodInventory];
+    const batch = writeBatch(db);
 
     selectedProjectBOM.forEach(bom => {
       if (bom.type === 'wood') {
-        updatedWood = updatedWood.map(item => {
-          if (item.name.toLowerCase() === bom.name.toLowerCase()) {
-            const deductedVal = Math.max(0, item.available_stock - bom.required_qty);
-            
-            // Record consumption audit log
-            logsToAdd.push({
-              id: `c_log_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-              itemName: item.name,
-              quantityConsumed: bom.required_qty,
-              unit: item.unit,
-              orderArticleNo: orderNo,
-              timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16)
-            });
-
-            return { ...item, available_stock: Number(deductedVal.toFixed(1)) };
-          }
-          return item;
-        });
+        const item = woodInventory.find(w => w.name.toLowerCase() === bom.name.toLowerCase());
+        if (item) {
+          const deductedVal = Math.max(0, item.available_stock - bom.required_qty);
+          const logId = `c_log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+          const logData = {
+            id: logId,
+            itemName: item.name,
+            quantityConsumed: bom.required_qty,
+            unit: item.unit,
+            orderArticleNo: orderNo,
+            timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16)
+          };
+          batch.set(doc(db, 'mrp_wood', item.id), { ...item, available_stock: Number(deductedVal.toFixed(1)) });
+          batch.set(doc(db, 'mrp_consumption_logs', logId), logData);
+        }
       } else {
-        updatedHardware = updatedHardware.map(item => {
-          if (item.name.toLowerCase() === bom.name.toLowerCase()) {
-            const deductedVal = Math.max(0, item.available_stock - bom.required_qty);
-            
-            // Record consumption log
-            logsToAdd.push({
-              id: `c_log_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-              itemName: item.name,
-              quantityConsumed: bom.required_qty,
-              unit: item.unit,
-              orderArticleNo: orderNo,
-              timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16)
-            });
-
-            return { ...item, available_stock: Math.max(0, item.available_stock - bom.required_qty) };
-          }
-          return item;
-        });
+        const item = hardwareInventory.find(h => h.name.toLowerCase() === bom.name.toLowerCase());
+        if (item) {
+          const deductedVal = Math.max(0, item.available_stock - bom.required_qty);
+          const logId = `c_log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+          const logData = {
+            id: logId,
+            itemName: item.name,
+            quantityConsumed: bom.required_qty,
+            unit: item.unit,
+            orderArticleNo: orderNo,
+            timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16)
+          };
+          batch.set(doc(db, 'mrp_hardware', item.id), { ...item, available_stock: Math.max(0, item.available_stock - bom.required_qty) });
+          batch.set(doc(db, 'mrp_consumption_logs', logId), logData);
+        }
       }
     });
 
-    setHardwareInventory(updatedHardware);
-    setWoodInventory(updatedWood);
-    setConsumptionLogs(prev => [...logsToAdd, ...prev]);
+    try {
+      await batch.commit();
 
-    // Update Stage status safely
-    if (activeProject && onOrderUpdate) {
-      const updatedOrder = {
-        ...activeProject,
-        current_status: 'Carpentry' as const, // Transit safely to active Carpentry
-        updated_at: new Date().toISOString().slice(0, 10)
-      };
-      // Emitting status log info
-      onOrderUpdate(updatedOrder, {
-        id: `log_mrp_${Date.now()}`,
-        order_id: activeProject.id,
-        stage: 'Carpentry',
-        changed_by: 'system',
-        changed_by_name: 'MRP Automated System',
-        changed_by_role: 'admin',
-        timestamp: new Date().toISOString(),
-        note: 'Automatic MRP Stock Deduction executed successfully. Wood cutting and accessories issued.'
-      });
+      // Update Stage status safely
+      if (activeProject && onOrderUpdate) {
+        const updatedOrder = {
+          ...activeProject,
+          current_status: 'Carpentry' as const, // Transit safely to active Carpentry
+          updated_at: new Date().toISOString().slice(0, 10)
+        };
+        // Emitting status log info
+        onOrderUpdate(updatedOrder, {
+          id: `log_mrp_${Date.now()}`,
+          order_id: activeProject.id,
+          stage: 'Carpentry',
+          changed_by: 'system',
+          changed_by_name: 'MRP Automated System',
+          changed_by_role: 'admin',
+          timestamp: new Date().toISOString(),
+          note: 'Automatic MRP Stock Deduction executed successfully. Wood cutting and accessories issued.'
+        });
+      }
+
+      alert(`🎉 INVENTORY DEDUCTION COMMITTED!\nSuccessfully subtracted and registered cutting & assembly materials on ${selectedProjectBOM.length} component categories. Cleaned logs have been added to the consumption registry.`);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'mrp_deduction');
     }
-
-    alert(`🎉 INVENTORY DEDUCTION COMMITTED!\nSuccessfully subtracted and registered cutting & assembly materials on ${selectedProjectBOM.length} component categories. Cleaned logs have been added to the consumption registry.`);
   };
 
   // STOCK RESERVATION
-  const handleReserveProjectStock = () => {
-    let updatedHardware = [...hardwareInventory];
-    let updatedWood = [...woodInventory];
+  const handleReserveProjectStock = async () => {
+    const batch = writeBatch(db);
 
     selectedProjectBOM.forEach(bom => {
       if (bom.type === 'wood') {
-        updatedWood = updatedWood.map(item => {
-          if (item.name.toLowerCase() === bom.name.toLowerCase()) {
-            // Allocate reservation up to available stock
-            const potentialReserve = Math.min(item.available_stock, item.reserved_stock + bom.required_qty);
-            return { ...item, reserved_stock: Number(potentialReserve.toFixed(1)) };
-          }
-          return item;
-        });
+        const item = woodInventory.find(w => w.name.toLowerCase() === bom.name.toLowerCase());
+        if (item) {
+          const potentialReserve = Math.min(item.available_stock, item.reserved_stock + bom.required_qty);
+          batch.set(doc(db, 'mrp_wood', item.id), { ...item, reserved_stock: Number(potentialReserve.toFixed(1)) });
+        }
       } else {
-        updatedHardware = updatedHardware.map(item => {
-          if (item.name.toLowerCase() === bom.name.toLowerCase()) {
-            const potentialReserve = Math.min(item.available_stock, item.reserved_stock + bom.required_qty);
-            return { ...item, reserved_stock: potentialReserve };
-          }
-          return item;
-        });
+        const item = hardwareInventory.find(h => h.name.toLowerCase() === bom.name.toLowerCase());
+        if (item) {
+          const potentialReserve = Math.min(item.available_stock, item.reserved_stock + bom.required_qty);
+          batch.set(doc(db, 'mrp_hardware', item.id), { ...item, reserved_stock: potentialReserve });
+        }
       }
     });
 
-    setHardwareInventory(updatedHardware);
-    setWoodInventory(updatedWood);
-    alert(`🔐 MATERIALS RESERVATION COMPLETE!\nWe have successfully reserved in-stock materials exclusively for Project Room allocation. This protects items against other active walk-in orders.`);
+    try {
+      await batch.commit();
+      alert(`🔐 MATERIALS RESERVATION COMPLETE!\nWe have successfully reserved in-stock materials exclusively for Project Room allocation. This protects items against other active walk-in orders.`);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'mrp_reservation');
+    }
   };
 
   // AUTOMATIC CALCULATED REQUISITIONS
@@ -463,7 +521,7 @@ export default function MaterialRequirementPlanning({ selectedOrderId, orders, c
   };
 
   // Master lists item handlers
-  const handleAddMasterHardware = (e: React.FormEvent) => {
+  const handleAddMasterHardware = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newHw.name.trim()) return;
 
@@ -472,12 +530,16 @@ export default function MaterialRequirementPlanning({ selectedOrderId, orders, c
       id: `hw_custom_${Date.now()}`
     };
 
-    setHardwareInventory(prev => [...prev, added]);
-    setNewHw({ name: '', category: 'Hinges', available_stock: 50, reserved_stock: 0, unit: 'pcs', low_threshold: 10, unit_cost: 120, supplier: '' });
-    alert('✅ Hardware master item created.');
+    try {
+      await setDoc(doc(db, 'mrp_hardware', added.id), added);
+      setNewHw({ name: '', category: 'Hinges', available_stock: 50, reserved_stock: 0, unit: 'pcs', low_threshold: 10, unit_cost: 120, supplier: '' });
+      alert('✅ Hardware master item created.');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `mrp_hardware/${added.id}`);
+    }
   };
 
-  const handleAddMasterWood = (e: React.FormEvent) => {
+  const handleAddMasterWood = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWd.name.trim()) return;
 
@@ -486,9 +548,13 @@ export default function MaterialRequirementPlanning({ selectedOrderId, orders, c
       id: `wood_custom_${Date.now()}`
     };
 
-    setWoodInventory(prev => [...prev, added]);
-    setNewWd({ name: '', category: 'Plywood', thickness: '18mm', grade: 'IS:710', available_stock: 10, reserved_stock: 0, unit: 'sheets', low_threshold: 3, unit_cost: 2200, supplier: '' });
-    alert('✅ Wood master item created.');
+    try {
+      await setDoc(doc(db, 'mrp_wood', added.id), added);
+      setNewWd({ name: '', category: 'Plywood', thickness: '18mm', grade: 'IS:710', available_stock: 10, reserved_stock: 0, unit: 'sheets', low_threshold: 3, unit_cost: 2200, supplier: '' });
+      alert('✅ Wood master item created.');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `mrp_wood/${added.id}`);
+    }
   };
 
   // Dashboard Aggregates
@@ -560,15 +626,6 @@ export default function MaterialRequirementPlanning({ selectedOrderId, orders, c
             }`}
           >
             🪵 Wood &amp; Boards Master
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('planner')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
-              activeTab === 'planner' ? 'bg-[#593622] text-white shadow-xs' : 'text-stone-500 hover:text-stone-850'
-            }`}
-          >
-            📋 Project BOM Planner
           </button>
         </div>
       </div>
@@ -722,24 +779,20 @@ export default function MaterialRequirementPlanning({ selectedOrderId, orders, c
           {/* ACTIVE PROJECTS OUTLOOK */}
           <div className="bg-[#593622]/5 p-5 border border-[#593622]/15 rounded-2xl space-y-3">
             <h3 className="text-xs font-black uppercase text-[#593622] tracking-wider flex items-center gap-1.5">
-              📋 Materials Required for Active Workshop Projects ({orders.length} orders loaded)
+              📋 Active Workshop Projects ({orders.length} orders loaded)
             </h3>
             <p className="text-xs text-stone-600 leading-relaxed font-sans">
-              Integrate with customer design files or wood schedules. Select any order from the **Project BOM Planner** tab to dynamically evaluate materials and trigger automatic stock deductions.
+              Active workshop furniture projects currently being processed in production.
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
               {orders.map(o => (
-                <button
+                <div
                   key={o.id}
-                  onClick={() => {
-                    setActiveProjectId(o.id);
-                    setActiveTab('planner');
-                  }}
-                  className="bg-white border hover:border-amber-500 hover:text-[#593622] p-2 rounded-xl text-[11px] font-bold text-stone-800 transition flex items-center gap-2"
+                  className="bg-white border p-2 rounded-xl text-[11px] font-bold text-stone-800 flex items-center gap-2 shadow-2xs"
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
                   <strong>{o.article_no}</strong>: {o.sub_category}
-                </button>
+                </div>
               ))}
             </div>
           </div>
@@ -1136,369 +1189,7 @@ export default function MaterialRequirementPlanning({ selectedOrderId, orders, c
         </div>
       )}
 
-      {/* TAB 4: PROJECT BOM AND ALLOCATION PLANNER */}
-      {activeTab === 'planner' && (
-        <div className="space-y-6 animate-fade-in font-sans">
-          
-          {/* Linked projects indicator info bar */}
-          <div className="bg-[#f2efe9] rounded-2xl p-5 border border-stone-250 flex flex-col md:flex-row md:items-center justify-between gap-4 font-sans text-xs">
-            <div className="space-y-1.5 min-w-0">
-              <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider block">Requirement planning console</span>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-extrabold text-[#593622]">Connect Active Workshop Order:</span>
-                <select
-                  value={activeProjectId}
-                  onChange={(e) => {
-                    setActiveProjectId(e.target.value);
-                    setRequisitionOutput([]);
-                  }}
-                  className="p-1 px-3 bg-white border border-stone-300 font-bold text-stone-950 rounded-lg focus:ring-1 focus:ring-[#593622] focus:outline-none"
-                >
-                  <option value="">-- Click to choose client project --</option>
-                  {orders.map(o => {
-                    const client = customers.find(c => c.id === o.customer_id);
-                    return (
-                      <option key={o.id} value={o.id}>
-                        {o.article_no} • {o.sub_category} (Customer: {client ? client.name : 'Walk-In'})
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
 
-              {activeProjectObj ? (() => {
-                const client = customers.find(c => c.id === activeProjectObj.customer_id);
-                return (
-                  <div className="text-stone-600 block mt-1">
-                    📄 Standard Specifications: <strong className="text-stone-900">{activeProjectObj.sub_category}</strong> in{' '}
-                    <strong className="text-stone-900">{activeProjectObj.material}</strong> for <strong className="text-[#593622]">{client ? client.name : 'Walk-In'}</strong> &bull; Finish: <strong className="font-semibold text-stone-800">{activeProjectObj.finish || 'Polished'}</strong>
-                  </div>
-                );
-              })() : (
-                <p className="text-stone-450 italic">Please select an active order above to construct and verify its Bill of Materials (BOM) planning sheet.</p>
-              )}
-            </div>
-
-            {/* Dynamic Status block indicator calculated on stock */}
-            {activeProjectObj && (
-              <div className="shrink-0 text-center md:text-right space-y-1 bg-white p-3.5 rounded-xl border border-stone-250 shadow-2xs">
-                <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider block">Inventory Verification Outcome</span>
-                <div className="pt-0.5">
-                  {getProjectStatus() === 'Ready for Production' && (
-                    <span className="p-1 px-3 bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-lg font-black text-xs uppercase inline-block select-none">
-                      ✅ Ready for Production
-                    </span>
-                  )}
-                  {getProjectStatus() === 'Partially Available' && (
-                    <span className="p-1 px-3 bg-amber-50 text-amber-900 border border-amber-300 rounded-lg font-black text-xs uppercase inline-block">
-                      ⚠️ Partially Available
-                    </span>
-                  )}
-                  {getProjectStatus() === 'Procurement Required' && (
-                    <span className="p-1 px-3 bg-rose-50 text-rose-800 border border-rose-300 rounded-lg font-black text-xs uppercase inline-block animate-pulse">
-                      🚨 Procurement Required
-                    </span>
-                  )}
-                  {getProjectStatus() === 'No Requirements Registered' && (
-                    <span className="p-1 px-3 bg-stone-100 text-stone-500 rounded-lg font-black text-xs uppercase inline-block">
-                      No materials registered
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* OVERVIEW TABLE FOR THE DYNAMIC ORDER BILL OF MATERIALS (BOM) */}
-          {activeProjectObj ? (
-            <div className="space-y-6">
-              
-              <div className="bg-white border rounded-2xl overflow-hidden">
-                <div className="p-4 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
-                  <h4 className="text-xs font-black uppercase text-[#593622] tracking-wider font-display">
-                    🔨 Bill of Materials (BOM) configuration
-                  </h4>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handleReserveProjectStock}
-                      className="p-1.5 px-3 bg-[#593622]/10 border border-[#593622]/30 text-[#593622] hover:bg-[#593622]/20 transition rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1"
-                    >
-                      <Lock size={11} /> Allocate Reserved Stock
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleGeneratePurchaseRequisition}
-                      className="p-1.5 px-3 bg-amber-50 border border-amber-250 text-amber-900 hover:bg-amber-100 transition rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1"
-                    >
-                      <ShoppingCart size={11} /> Check Shortages &amp; Quote
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleAutomaticDeduction}
-                      className="p-1.5 px-3 bg-emerald-700 text-white hover:bg-emerald-800 transition rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5"
-                      title="Automatic stock deduction after production"
-                    >
-                      <ClipboardCheck size={11} /> Auto Stock Deduction
-                    </button>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto text-xs">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-stone-100 border-b text-stone-500 font-bold uppercase text-[9px] tracking-wider select-none font-sans text-center">
-                        <th className="py-2 px-4 text-left border-r min-w-[220px]">Required Component Item</th>
-                        <th className="py-2 px-2 border-r">Requirement Type</th>
-                        <th className="py-2 px-2 border-r text-center">Required Qty</th>
-                        <th className="py-2 px-2 border-r text-center">Unreserved Free Stock</th>
-                        <th className="py-2 px-2 border-r text-center">Global Available Master Stock</th>
-                        <th className="py-2 px-3 text-right">Pre-check Shortage</th>
-                        <th className="py-2 px-2 text-center">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y font-semibold text-stone-850">
-                      {selectedProjectBOM.length > 0 ? (
-                        selectedProjectBOM.map(bom => {
-                          const stock = checkMasterStock(bom.name, bom.type);
-                          const netFreeStock = stock ? stock.available - stock.reserved : 0;
-                          const hasDeficit = stock ? (stock.item.available_stock < bom.required_qty) : true;
-                          const netShortage = stock ? Math.max(0, bom.required_qty - netFreeStock) : bom.required_qty;
-                          
-                          return (
-                            <tr key={bom.id} className="hover:bg-amber-50/5">
-                              {/* Material Master Label */}
-                              <td className="py-2 px-4 text-left border-r font-black text-stone-900 flex items-center gap-2">
-                                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${bom.type === 'wood' ? 'bg-amber-600' : 'bg-stone-605'}`} />
-                                <div>
-                                  <span className="block text-xs">{bom.name}</span>
-                                  {!stock && (
-                                    <span className="block text-[8px] text-red-500 font-bold font-mono tracking-wider">⚠️ NOT IN MASTER</span>
-                                  )}
-                                </div>
-                              </td>
-
-                              {/* Material Category Type */}
-                              <td className="py-2 px-2 border-r text-center uppercase text-[10px]">
-                                <span className={`p-0.5 px-2 rounded-lg font-black border text-[9px] ${
-                                  bom.type === 'wood' ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-stone-550 text-[#593622] bg-[#593622]/10 border-stone-300'
-                                }`}>
-                                  {bom.type === 'wood' ? 'WOOD PANEL' : 'HARDWARE'}
-                                </span>
-                              </td>
-
-                              {/* Required Quantity Input */}
-                              <td className="py-1 px-2 border-r text-center">
-                                <div className="flex items-center justify-center gap-1.5">
-                                  <input
-                                    type="number"
-                                    step="0.1"
-                                    value={bom.required_qty}
-                                    onChange={(e) => {
-                                      const val = Math.max(0.1, Number(e.target.value));
-                                      const updated = selectedProjectBOM.map(x => x.id === bom.id ? { ...x, required_qty: val } : x);
-                                      saveActiveProjectBOM(updated);
-                                    }}
-                                    className="w-14 bg-stone-50 text-center border p-0.5 rounded font-mono font-bold text-stone-950"
-                                  />
-                                  <span className="text-[10px] text-stone-400 font-sans uppercase font-black">{bom.unit}</span>
-                                </div>
-                              </td>
-
-                              {/* Net Free Stock */}
-                              <td className="py-2 px-2 border-r text-center font-mono">
-                                {stock ? (
-                                  <span className={netFreeStock >= bom.required_qty ? 'text-emerald-700 font-extrabold' : 'text-amber-700'}>
-                                    {netFreeStock.toFixed(1)} {bom.unit}
-                                  </span>
-                                ) : (
-                                  <span className="text-red-500 italic">0.0</span>
-                                )}
-                              </td>
-
-                              {/* Master Global Available Stock */}
-                              <td className="py-2 px-2 border-r text-center font-mono text-stone-550">
-                                {stock ? (
-                                  <span>{stock.available} {bom.unit} <span className="text-[10px] text-stone-400 block font-sans">({stock.reserved} reserved)</span></span>
-                                ) : (
-                                  <span className="text-red-500">Not config</span>
-                                )}
-                              </td>
-
-                              {/* Shortage indicator */}
-                              <td className="py-2 px-3 border-r text-right font-mono text-xs">
-                                {netShortage > 0 ? (
-                                  <span className="p-1 px-2 bg-red-101 text-red-700 text-[11px] font-black tracking-tight rounded-lg border border-red-150">
-                                    Shortage: {netShortage.toFixed(1)} {bom.unit}
-                                  </span>
-                                ) : (
-                                  <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg text-[10px] font-bold">
-                                    ✓ Available
-                                  </span>
-                                )}
-                              </td>
-
-                              {/* Remove BOM line */}
-                              <td className="py-2 px-2 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteBOMItem(bom.id)}
-                                  className="p-1 rounded text-stone-300 hover:text-red-700 hover:bg-stone-100 transition"
-                                >
-                                  ✕
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      ) : (
-                        <tr>
-                          <td colSpan={7} className="py-12 text-center text-stone-400 font-medium italic font-sans bg-stone-50/40">
-                            No Bill of Material lines configured. Choose a category template below or configure custom lines.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* DYNAMIC BOM BUILDER: INSERT WOOD OR HARDWARE LINK */}
-              <form onSubmit={handleAddBOMItem} className="bg-white border rounded-2xl p-4 shadow-3xs space-y-3 font-sans">
-                <h5 className="text-[10px] font-black uppercase text-[#593622] tracking-wider select-none leading-none">
-                  ➕ APPEND CUSTOM MATERIALS LINE ITEM IN THIS BILL OF MATERIALS (BOM)
-                </h5>
-                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs items-end">
-                  
-                  {/* Item selector matching master logs/hardware */}
-                  <div className="sm:col-span-6">
-                    <label className="block text-[9px] font-bold text-stone-400 uppercase mb-1">Select from master stock logs / configure item</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Nagpur Teak Wood Square Rough Logs or Hinges 3D"
-                      value={newBomMatName}
-                      onChange={(e) => setNewBomMatName(e.target.value)}
-                      className="w-full bg-stone-50 border p-2 rounded-lg font-bold text-stone-900 focus:ring-1 focus:ring-amber-500 focus:outline-none"
-                      list="master_mrp_items"
-                    />
-                    <datalist id="master_mrp_items">
-                      {woodInventory.map(w => <option key={w.id} value={w.name}>{w.name} (Wood)</option>)}
-                      {hardwareInventory.map(h => <option key={h.id} value={h.name}>{h.name} (Hardware)</option>)}
-                    </datalist>
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="block text-[9px] font-bold text-stone-400 uppercase mb-1">Requirement Class</label>
-                    <select
-                      value={newBomMatType}
-                      onChange={(e: any) => setNewBomMatType(e.target.value)}
-                      className="w-full bg-stone-50 border p-2 rounded-lg text-stone-950 font-bold focus:outline-none"
-                    >
-                      <option value="wood">Wood Panel Sheet</option>
-                      <option value="hardware">Hardware / Pull-Lock</option>
-                    </select>
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="block text-[9px] font-bold text-stone-400 uppercase mb-1">Required quantity</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      required
-                      value={newBomMatQty || ''}
-                      onChange={(e) => setNewBomMatQty(Math.max(0.1, Number(e.target.value)))}
-                      className="w-full bg-stone-50 border p-2 rounded-lg text-stone-900 font-bold"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <button
-                      type="submit"
-                      className="w-full bg-[#593622] hover:bg-[#402414] text-white p-2 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all"
-                    >
-                      Add Material Row
-                    </button>
-                  </div>
-
-                </div>
-              </form>
-
-              {/* AUTOMATIC GENERATED REQUISITIONS BOX IF TRIGGERED */}
-              {requisitionOutput.length > 0 && (
-                <div className="bg-amber-50 border border-amber-300 rounded-2xl p-5 space-y-4 font-sans animate-fade-in">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-black uppercase text-amber-900 flex items-center gap-1.5">
-                        <ShoppingCart size={14} /> Dynamic Shortage Procurement Sheet &amp; Supplier Quote Cost
-                      </h4>
-                      <p className="text-[10px] text-amber-850 mt-0.5">Estimated procurement requisition list to fulfill the calculated shortages</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setRequisitionOutput([])}
-                      className="text-amber-900 hover:text-red-700 font-black text-xs"
-                    >
-                      Dismiss Requisition
-                    </button>
-                  </div>
-
-                  <div className="border border-amber-300 rounded-xl overflow-hidden bg-white text-xs">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-amber-100 text-amber-950 font-black select-none text-[9px] uppercase font-sans text-center">
-                          <th className="py-2 px-3 text-left border-r border-amber-200">Shortage Item Name</th>
-                          <th className="py-2 px-3 border-r border-amber-200">Category</th>
-                          <th className="py-2 px-3 border-r border-amber-200 text-center">Procurement Qty Deficit</th>
-                          <th className="py-2 px-3 text-right">Estimated Subtotal Cost (₹)</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-amber-100 font-semibold text-stone-850 text-center">
-                        {requisitionOutput.map((item, idx) => (
-                          <tr key={idx} className="hover:bg-amber-55/35">
-                            <td className="py-2 px-3 text-left border-r border-amber-100 font-bold text-stone-900">{item.name}</td>
-                            <td className="py-2 px-3 border-r border-amber-100 uppercase text-[9px] font-bold">{item.type}</td>
-                            <td className="py-2 px-3 border-r border-amber-100 text-center text-red-700 font-mono font-bold">+{item.shortage} {item.unit}</td>
-                            <td className="py-2 px-3 text-right font-mono text-stone-900">₹{item.cost.toLocaleString('en-IN')}</td>
-                          </tr>
-                        ))}
-                        <tr className="bg-amber-50 font-black text-amber-950">
-                          <td colSpan={3} className="py-3 px-3 border-r border-amber-100 text-right uppercase tracking-wider text-[10px]">
-                            GRAND PROCUREMENT BUDGET REQUIRED:
-                          </td>
-                          <td className="py-3 px-3 text-right font-mono text-sm font-black text-amber-900">
-                            ₹{requisitionOutput.reduce((acc, item) => acc + item.cost, 0).toLocaleString('en-IN')}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="flex justify-end gap-2 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // Mark active items in stock as ordered simulation
-                        alert('✈️ SUPPLIER ENQUIRY SENT!\nPurchase Requisition submitted to Nagpur Teak Depot. Master inventory updates sent.');
-                        setRequisitionOutput([]);
-                      }}
-                      className="px-4 py-1.5 bg-[#593622] hover:bg-[#402414] text-white rounded-lg font-black uppercase text-[10px] tracking-wider"
-                    >
-                      Send Supplier Enquiry (₹ Requisition)
-                    </button>
-                  </div>
-                </div>
-              )}
-
-            </div>
-          ) : (
-            <div className="bg-white p-12 text-center rounded-2xl border text-stone-450 italic text-xs">
-              ⚠️ No connected active furniture workshop list selected. Please select one of the client projects above to plan its custom materials log.
-            </div>
-          )}
-
-        </div>
-      )}
 
     </div>
   );

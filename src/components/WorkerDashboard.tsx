@@ -6,7 +6,7 @@
 import React from 'react';
 import { Order, Customer, User, StatusLog, OrderStage, WoodSchedule, WoodPart } from '../types';
 import { generateUUID } from '../db/store';
-import { Clock, Eye, AlertCircle, CheckCircle, Upload, ArrowLeft, Image as ImageIcon, Camera, Trash2, Plus, Hammer, ExternalLink } from 'lucide-react';
+import { Clock, Eye, AlertCircle, CheckCircle, Upload, ArrowLeft, Image as ImageIcon, Camera, Trash2, Plus, Hammer, ExternalLink, UploadCloud, Video, X } from 'lucide-react';
 
 function getDefaultWoodSchedule(order: Order): WoodSchedule {
   const sub = (order.sub_category || '').toLowerCase();
@@ -136,6 +136,99 @@ export default function WorkerDashboard({
   const [updateNotes, setUpdateNotes] = React.useState('');
   const [inProgressFiles, setInProgressFiles] = React.useState<string[]>([]);
   const [simulateUrlInput, setSimulateUrlInput] = React.useState('');
+
+  // Interactive Camera & Local Upload states for Worker update
+  const [isWebcamActive, setIsWebcamActive] = React.useState(false);
+  const [webcamStream, setWebcamStream] = React.useState<MediaStream | null>(null);
+  const [webcamError, setWebcamError] = React.useState<string | null>(null);
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+
+  const startWebcam = async () => {
+    setWebcamError(null);
+    setIsWebcamActive(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false
+      });
+      setWebcamStream(stream);
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 100);
+    } catch (err: any) {
+      console.error("Webcam access failed:", err);
+      setWebcamError(
+        "Could not launch camera stream. Please use the mobile native camera button or upload standard local files directly."
+      );
+    }
+  };
+
+  const stopWebcam = () => {
+    if (webcamStream) {
+      webcamStream.getTracks().forEach((track) => track.stop());
+      setWebcamStream(null);
+    }
+    setIsWebcamActive(false);
+  };
+
+  const captureSnapshot = () => {
+    if (videoRef.current) {
+      const video = videoRef.current;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        setInProgressFiles((prev) => [...prev, dataUrl]);
+        stopWebcam();
+      }
+    }
+  };
+
+  const handleLocalFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file: File) => {
+      if (!file.type.startsWith('image/')) {
+        alert('Please choose an image file (PNG, JPG, WEBP, etc).');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setInProgressFiles((prev) => [...prev, event.target!.result as string]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    
+    e.target.value = '';
+  };
+
+  // Safe release of webcam streams on activeOrder change or unmounting
+  React.useEffect(() => {
+    if (!activeOrder) {
+      if (webcamStream) {
+        webcamStream.getTracks().forEach((track) => track.stop());
+        setWebcamStream(null);
+      }
+      setIsWebcamActive(false);
+    }
+  }, [activeOrder]);
+
+  React.useEffect(() => {
+    return () => {
+      if (webcamStream) {
+        webcamStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [webcamStream]);
 
   // Wood Schedule edit states (replaces empty placeholder layout)
   const [catalogueName, setCatalogueName] = React.useState('');
@@ -709,25 +802,132 @@ export default function WorkerDashboard({
               </div>
 
               {/* Upload dynamic live photos (Simulated Paste url) */}
-              <div className="space-y-3">
-                <label className="block text-xs font-bold text-stone-700 uppercase tracking-widest font-sans">Upload progress photographs</label>
+              <div className="space-y-3 font-sans">
+                <label className="block text-xs font-bold text-stone-700 uppercase tracking-widest">Upload progress photographs</label>
                 
-                <div className="flex gap-2 bg-stone-50 p-3 rounded-xl border border-stone-200">
-                  <input
-                    type="text"
-                    value={simulateUrlInput}
-                    onChange={(e) => setSimulateUrlInput(e.target.value)}
-                    placeholder="https://images.unsplash.com/photo-1595..."
-                    className="flex-1 px-3 py-2 bg-white border border-stone-250 rounded-lg focus:outline-none focus:border-[#593622] font-semibold"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddPhotos}
-                    className="bg-[#593622] text-white hover:bg-[#402414] px-4 py-2 font-bold rounded-lg text-xs transition shrink-0"
-                  >
-                    Add Photo
-                  </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Local file and mobile camera buttons */}
+                  <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 flex flex-col justify-between space-y-3">
+                    <div>
+                      <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider block">Local Attachment</span>
+                      <p className="text-[11px] text-stone-500 leading-normal">Choose existing files from your mobile phone memory or PC desktop gallery.</p>
+                    </div>
+
+                    <div className="flex gap-1.5 pt-1.5">
+                      <label className="flex-1 bg-white border border-stone-300 rounded-lg p-2 flex items-center justify-center gap-1.5 hover:border-[#593622] hover:bg-stone-50 cursor-pointer shadow-3xs font-extrabold text-[11px] text-stone-850 transition-colors">
+                        <UploadCloud size={13} className="text-[#593622]" />
+                        <span>Browse file</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLocalFileUpload}
+                          className="hidden"
+                        />
+                      </label>
+
+                      <label className="flex-1 bg-[#593622] text-white rounded-lg p-2 flex items-center justify-center gap-1.5 hover:bg-[#402414] cursor-pointer shadow-3xs font-black uppercase text-[10px] tracking-wider transition-colors">
+                        <Camera size={13} />
+                        <span>Direct Camera</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          onChange={handleLocalFileUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Webcam Live Capture block */}
+                  <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 flex flex-col justify-between space-y-3">
+                    <div>
+                      <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider block">Workshop Scan</span>
+                      <p className="text-[11px] text-stone-500 leading-normal font-sans">Record snapshots of cut wood or finished polishing stages instantly.</p>
+                    </div>
+
+                    {!isWebcamActive ? (
+                      <button
+                        type="button"
+                        onClick={startWebcam}
+                        className="w-full bg-[#593622]/10 border border-[#593622]/35 text-[#593622] hover:bg-[#593622]/20 font-bold uppercase text-[10px] tracking-widest p-2 rounded-lg flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <Video size={13} />
+                        <span>Start Viewfinder</span>
+                      </button>
+                    ) : (
+                      <div className="bg-stone-950 rounded-lg overflow-hidden relative border border-stone-900 aspect-video flex flex-col justify-end">
+                        {webcamError ? (
+                          <div className="p-2 text-[9px] text-red-400 font-bold text-center flex flex-col items-center justify-center h-full">
+                            <span>{webcamError}</span>
+                            <button
+                              type="button"
+                              onClick={stopWebcam}
+                              className="mt-1.5 p-0.5 px-2 bg-white text-stone-900 rounded font-black text-[8px] uppercase font-sans"
+                            >
+                              Close
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <video
+                              ref={videoRef}
+                              autoPlay
+                              playsInline
+                              className="absolute inset-0 object-cover w-full h-full scale-x-[-1]"
+                            />
+                            <div className="absolute top-1 right-1 bg-black/60 p-0.5 px-1.5 rounded font-mono text-[8px] text-stone-300 font-bold tracking-widest animate-pulse flex items-center gap-0.5">
+                              <span className="h-1 w-1 bg-red-600 rounded-full inline-block" /> WORKSHOP CAM
+                            </div>
+                            <div className="absolute bottom-1.5 left-1.5 right-1.5 flex gap-1 z-10">
+                              <button
+                                type="button"
+                                onClick={captureSnapshot}
+                                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white p-1 rounded font-black uppercase text-[9px] tracking-wider shadow"
+                              >
+                                📸 SNAP
+                              </button>
+                              <button
+                                type="button"
+                                onClick={stopWebcam}
+                                className="bg-red-700 hover:bg-red-800 text-white p-1 px-2 rounded font-bold text-[9px] uppercase shadow"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
+
+                {/* Collapsible reference URL */}
+                <details className="group bg-stone-100 border border-stone-250/70 rounded-xl overflow-hidden text-xs">
+                  <summary className="p-2 font-bold text-stone-500 hover:text-[#593622] cursor-pointer select-none flex items-center justify-between text-[10px] uppercase tracking-wide">
+                    <span>🔗 Paste manual snapshot link</span>
+                    <span className="group-open:rotate-180 transition-transform">▼</span>
+                  </summary>
+                  
+                  <div className="p-3 border-t bg-stone-50 space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={simulateUrlInput}
+                        onChange={(e) => setSimulateUrlInput(e.target.value)}
+                        placeholder="https://images.unsplash.com/photo-1595..."
+                        className="flex-1 px-2.5 py-1.5 bg-white border border-stone-250 rounded focus:outline-none text-xs text-stone-850 font-semibold"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddPhotos}
+                        className="bg-[#593622] text-white hover:bg-[#402414] px-3.5 py-1.5 font-bold rounded text-[10px] uppercase transition shrink-0"
+                      >
+                        Append Link
+                      </button>
+                    </div>
+                  </div>
+                </details>
 
                 {/* Grid gallery of files uploaded */}
                 {inProgressFiles.length > 0 ? (
@@ -738,8 +938,8 @@ export default function WorkerDashboard({
                         <button
                           type="button"
                           onClick={() => setInProgressFiles(inProgressFiles.filter((_, i) => i !== idx))}
-                          className="absolute top-1 right-1 bg-red-600 text-white p-1 rounded font-bold"
-                          title="delete"
+                          className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white p-1 rounded-md font-bold text-[10px] h-5 w-5 flex items-center justify-center transition shadow"
+                          title="Delete photograph"
                         >
                           ✕
                         </button>
@@ -748,9 +948,9 @@ export default function WorkerDashboard({
                   </div>
                 ) : (
                   <div className="py-8 border-2 border-dashed border-stone-250 rounded-xl flex flex-col items-center justify-center text-stone-400 select-none">
-                    <Camera size={24} className="text-stone-300 mb-1" />
-                    <p className="font-bold text-stone-500">No completion photographs present</p>
-                    <p className="text-[10px] text-stone-400 mt-0.5">Please add a simulated image link above to inspect progress.</p>
+                    <ImageIcon size={24} className="text-stone-300 mb-1 animate-pulse" />
+                    <p className="font-bold text-stone-500">No progress snapshots attached</p>
+                    <p className="text-[10px] text-stone-400 mt-0.5">Use camera button, local files browser, or paste custom urls.</p>
                   </div>
                 )}
               </div>

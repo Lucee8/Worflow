@@ -46,5 +46,25 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated() && isValidId(paymentId);
     }
+
+    match /mrp_hardware/{itemId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidId(itemId);
+    }
+
+    match /mrp_wood/{itemId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidId(itemId);
+    }
+
+    match /mrp_consumption_logs/{logId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidId(logId);
+    }
+
+    match /mrp_project_boms/{projectId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidId(projectId);
+    }
   }
 }

@@ -41,7 +41,16 @@ export default function Sidebar({
   notificationsCount = 3,
 }: SidebarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [confirmLogout, setConfirmLogout] = React.useState(false);
   const isAdmin = currentUser.role === 'admin';
+
+  // Auto-reset logout confirmation banner after 3.5 seconds
+  React.useEffect(() => {
+    if (confirmLogout) {
+      const timer = setTimeout(() => setConfirmLogout(false), 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [confirmLogout]);
 
   // Define nav links per role
   const navItems = isAdmin
@@ -206,14 +215,21 @@ export default function Sidebar({
 
           <button
             onClick={() => {
-              if (window.confirm('Do you really want to sign out from the workshop?')) {
+              if (confirmLogout) {
                 onLogout();
+                setConfirmLogout(false);
+              } else {
+                setConfirmLogout(true);
               }
             }}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-950/25 text-xs font-semibold tracking-wide transition"
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
+              confirmLogout
+                ? 'bg-rose-600 text-white shadow-md animate-pulse'
+                : 'text-rose-400 hover:text-rose-300 hover:bg-rose-950/25'
+            }`}
           >
-            <LogOut size={15} className="text-rose-500" />
-            Logout
+            <LogOut size={15} className={confirmLogout ? 'text-white font-bold' : 'text-rose-500'} />
+            <span>{confirmLogout ? 'Click again to Sign Out' : 'Logout'}</span>
           </button>
         </div>
       </aside>

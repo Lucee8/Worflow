@@ -19,7 +19,10 @@ import {
   ChevronRight, 
   ChevronLeft, 
   Plus, 
-  Minus 
+  Minus,
+  Camera,
+  UploadCloud,
+  Video
 } from 'lucide-react';
 
 // Preset photos for workshop previews
@@ -94,6 +97,106 @@ export default function OrderForm({ customers, users, orders, onSave, onCancel }
   // --- STEP 3: IMAGES STATE ---
   const [refImages, setRefImages] = React.useState<Array<{ id: string; url: string; type: 'Design Reference' }>>([]);
   const [imgUrlInput, setImgUrlInput] = React.useState('');
+
+  // Interactive Camera & Local Upload states
+  const [isWebcamActive, setIsWebcamActive] = React.useState(false);
+  const [webcamStream, setWebcamStream] = React.useState<MediaStream | null>(null);
+  const [webcamError, setWebcamError] = React.useState<string | null>(null);
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+
+  const startWebcam = async () => {
+    setWebcamError(null);
+    setIsWebcamActive(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }, // back camera on mobile or default workspace camera
+        audio: false
+      });
+      setWebcamStream(stream);
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 100);
+    } catch (err: any) {
+      console.error("Webcam access failed:", err);
+      setWebcamError(
+        "Could not launch camera stream. High-safety browser policies may restrict inline webcam inside preview frames. Please use the mobile native camera button or upload standard local files directly."
+      );
+    }
+  };
+
+  const stopWebcam = () => {
+    if (webcamStream) {
+      webcamStream.getTracks().forEach((track) => track.stop());
+      setWebcamStream(null);
+    }
+    setIsWebcamActive(false);
+  };
+
+  const captureSnapshot = () => {
+    if (videoRef.current) {
+      const video = videoRef.current;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        setRefImages((prev) => [
+          ...prev,
+          { id: generateUUID(), url: dataUrl, type: 'Design Reference' }
+        ]);
+        stopWebcam();
+      }
+    }
+  };
+
+  // Safe release of streams on step transition
+  React.useEffect(() => {
+    if (step !== 3) {
+      if (webcamStream) {
+        webcamStream.getTracks().forEach((track) => track.stop());
+        setWebcamStream(null);
+      }
+      setIsWebcamActive(false);
+    }
+  }, [step]);
+
+  React.useEffect(() => {
+    return () => {
+      if (webcamStream) {
+        webcamStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [webcamStream]);
+
+  // Handle local file uploads and camera files
+  const handleLocalFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file: File) => {
+      if (!file.type.startsWith('image/')) {
+        alert('Please choose an image file (PNG, JPG, WEBP, etc).');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setRefImages((prev) => [
+            ...prev,
+            { id: generateUUID(), url: event.target!.result as string, type: 'Design Reference' }
+          ]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    // reset indicator so same file triggers change again
+    e.target.value = '';
+  };
 
   // --- STEP 4: ASSIGNMENTS STATE ---
   const [carpenterId, setCarpenterId] = React.useState(activeCarpenters[0]?.id || '');
@@ -629,65 +732,179 @@ export default function OrderForm({ customers, users, orders, onSave, onCancel }
                 3. Design Reference Drawings
               </h2>
 
-              <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 space-y-3">
-                <label className="block text-xs font-bold text-stone-700 uppercase tracking-wide font-sans">
-                  Simulate image upload (Paste Image URL)
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={imgUrlInput}
-                    onChange={(e) => setImgUrlInput(e.target.value)}
-                    placeholder="https://images.unsplash.com/photo-..."
-                    className="flex-1 px-3 py-2 bg-white border border-stone-250 rounded-lg text-xs focus:border-[#593622] focus:outline-none font-semibold"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddImageUrl}
-                    className="bg-[#593622] text-white hover:bg-[#402414] px-4 py-2 font-bold text-xs rounded-lg shadow transition shrink-0"
-                  >
-                    Add URL
-                  </button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* File Upload card */}
+                <div className="bg-stone-50 p-5 rounded-2xl border border-stone-200 flex flex-col justify-between space-y-4 min-h-[190px]">
+                  <div>
+                    <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider block mb-1">LOCAL FILE INTEGRATION</span>
+                    <h3 className="text-xs font-black text-[#593622] uppercase tracking-wider">Device Gallery or File Manager</h3>
+                    <p className="text-[11px] text-stone-500 leading-normal mt-1">Select and attach existing custom workshop sketch designs or hand-drafted blueprint files from your device memory.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    {/* PC File Upload Button */}
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <label className="flex-1 bg-white border border-stone-300 rounded-xl p-2.5 flex items-center justify-center gap-2 hover:border-[#593622] hover:bg-stone-50 cursor-pointer shadow-2xs font-extrabold text-[11px] text-stone-800 transition">
+                        <UploadCloud size={14} className="text-[#593622]" />
+                        <span>Browse local photos</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleLocalFileUpload}
+                          className="hidden"
+                        />
+                      </label>
+                      
+                      {/* Native Mobile Camera direct trigger */}
+                      <label className="flex-1 bg-[#593622] text-white rounded-xl p-2.5 flex items-center justify-center gap-2 hover:bg-[#402414] cursor-pointer shadow-2xs font-black uppercase text-[11px] tracking-wider transition">
+                        <Camera size={14} />
+                        <span>Mobile Camera</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          onChange={handleLocalFileUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                    <p className="text-center text-[10px] text-stone-400">Drag &amp; drop anywhere into this box to upload direct formats</p>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 flex-wrap text-[#c2410c] font-bold text-[10px] mt-1 shrink-0">
-                  <span className="bg-amber-100/40 p-1 px-2.5 rounded text-amber-900 border border-amber-200">Presets:</span>
-                  {FURNITURE_PHOTOS.map((p, idx) => (
+                {/* Webcam Card */}
+                <div className="bg-stone-50 p-5 rounded-2xl border border-stone-200 flex flex-col justify-between space-y-4 min-h-[190px]">
+                  <div>
+                    <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider block mb-1">REAL-TIME WORKSHOP CAPTURE</span>
+                    <h3 className="text-xs font-black text-[#593622] uppercase tracking-wider">Live Document Scanner</h3>
+                    <p className="text-[11px] text-stone-500 leading-normal mt-1">Instantly take live snapshots of raw catalog pages, layout requests, or custom woodwork orders using your current screen camera.</p>
+                  </div>
+
+                  {!isWebcamActive ? (
                     <button
-                      key={idx}
                       type="button"
-                      onClick={() => setRefImages([...refImages, { id: generateUUID(), url: p, type: 'Design Reference' }])}
-                      className="bg-white border rounded p-1 hover:border-amber-400 font-semibold"
+                      onClick={startWebcam}
+                      className="bg-[#593622]/10 border border-[#593622]/30 text-[#593622] hover:bg-[#593622]/20 font-black uppercase text-[11px] tracking-wider p-2.5 rounded-xl flex items-center justify-center gap-2 transition shadow-3xs"
                     >
-                      Wardrobe Preset {idx + 1}
+                      <Video size={14} />
+                      <span>Start Live Viewfinder</span>
                     </button>
-                  ))}
+                  ) : (
+                    <div className="bg-stone-900 rounded-xl overflow-hidden relative border border-stone-950 aspect-video flex flex-col justify-between">
+                      {webcamError ? (
+                        <div className="p-3 text-[10px] text-red-400 leading-relaxed font-bold flex flex-col items-center justify-center h-full text-center">
+                          <span>{webcamError}</span>
+                          <button
+                            type="button"
+                            onClick={stopWebcam}
+                            className="mt-2 p-1 px-3 bg-white text-stone-900 rounded-lg text-[9px] uppercase font-black"
+                          >
+                            Close stream
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            className="absolute inset-0 object-cover w-full h-full scale-x-[-1]"
+                          />
+                          <div className="absolute top-2 right-2 bg-black/60 p-0.5 px-2 rounded-md font-mono text-[9px] text-stone-300 font-bold tracking-widest animate-pulse select-none flex items-center gap-1">
+                            <span className="h-1.5 w-1.5 bg-red-600 rounded-full inline-block" /> LIVE CAM
+                          </div>
+                          <div className="absolute bottom-2 left-2 right-2 flex gap-2">
+                            <button
+                              type="button"
+                              onClick={captureSnapshot}
+                              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white p-1.5 rounded-lg font-black uppercase text-[10px] tracking-wider shadow"
+                            >
+                              📸 Take Snapshot
+                            </button>
+                            <button
+                              type="button"
+                              onClick={stopWebcam}
+                              className="bg-red-700 hover:bg-red-800 text-white p-1.5 px-3 rounded-lg font-bold text-[10px] uppercase shadow"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
+              {/* Collapsible presets and manual url paste */}
+              <details className="group bg-stone-100 border border-stone-250/70 rounded-xl overflow-hidden font-sans text-xs">
+                <summary className="p-3 font-extrabold text-stone-600 hover:text-[#593622] cursor-pointer select-none flex items-center justify-between text-[11px] uppercase tracking-wide">
+                  <span>🔗 Or paste internet photo path &amp; catalog presets</span>
+                  <span className="font-sans text-stone-400 group-open:rotate-180 transition-transform">▼</span>
+                </summary>
+                
+                <div className="p-4 bg-stone-50 border-t space-y-3">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={imgUrlInput}
+                      onChange={(e) => setImgUrlInput(e.target.value)}
+                      placeholder="https://images.unsplash.com/photo-..."
+                      className="flex-1 px-3 py-2 bg-white border border-stone-250 rounded-lg text-xs focus:border-[#593622] focus:outline-none font-semibold text-stone-850"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddImageUrl}
+                      className="bg-[#593622] text-white hover:bg-[#402414] px-4 py-2 font-bold text-xs rounded-lg shadow transition shrink-0"
+                    >
+                      Add URL
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 flex-wrap text-stone-500 font-bold text-[10px]">
+                    <span className="bg-stone-200 p-1 px-2.5 rounded text-stone-800 border border-stone-300">Catalog Presets:</span>
+                    {FURNITURE_PHOTOS.map((p, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setRefImages([...refImages, { id: generateUUID(), url: p, type: 'Design Reference' }])}
+                        className="bg-white border rounded px-2.5 py-1 hover:border-amber-500 font-bold text-stone-800 shadow-3xs transition-all"
+                      >
+                        Wardrobe Preset {idx + 1}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </details>
+
+              {/* Grid or Empty layout previews */}
               {refImages.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3">
-                  {refImages.map((img) => (
-                    <div key={img.id} className="relative group rounded-xl overflow-hidden border border-stone-200 aspect-video shadow-xs bg-stone-100">
-                      <img referrerPolicy="no-referrer" src={img.url} alt="Reference" className="object-cover w-full h-full" />
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveImage(img.id)}
-                          className="bg-[#b91c1c] text-white p-2 rounded-xl transition"
-                          title="Remove design reference drawing"
-                        >
-                          <Trash2 size={13} />
-                        </button>
+                <div className="mt-2 space-y-2">
+                  <span className="block text-[10px] text-stone-400 font-bold uppercase tracking-wider select-none">Active Blueprint Drawings ({refImages.length})</span>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {refImages.map((img) => (
+                      <div key={img.id} className="relative group rounded-xl overflow-hidden border border-stone-200 aspect-video shadow-xs bg-stone-100">
+                        <img referrerPolicy="no-referrer" src={img.url} alt="Reference" className="object-cover w-full h-full" />
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(img.id)}
+                            className="bg-[#b91c1c] text-white p-2 rounded-xl transition hover:scale-105"
+                            title="Remove layout file"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               ) : (
-                <div className="py-12 border-2 border-dashed border-stone-300 rounded-xl flex flex-col items-center justify-center text-stone-400">
-                  <ImageIcon size={32} className="text-stone-300 mb-2" />
-                  <p className="text-xs font-bold text-stone-500">No layout blueprint drawings added yet</p>
-                  <p className="text-[10px] text-stone-400 mt-0.5">Please paste standard image links or click standard catalog presets above.</p>
+                <div className="py-10 border-2 border-dashed border-stone-300 rounded-2xl flex flex-col items-center justify-center text-stone-400">
+                  <ImageIcon size={32} className="text-stone-300 mb-2 animate-pulse" />
+                  <p className="text-xs font-bold text-stone-500">No layout blueprints or photos added</p>
+                  <p className="text-[10px] text-stone-400 mt-0.5">Capture with camera, upload local drawings, or click standard templates above.</p>
                 </div>
               )}
             </div>

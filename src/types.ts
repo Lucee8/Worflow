@@ -16,6 +16,8 @@ export interface User {
   created_at: string;
   created_by?: string;
   phone?: string;
+  password?: string; // Mapped password/passcode
+  google_linked?: boolean; // If linked to Google single-sign-on
 }
 
 export interface Customer {
