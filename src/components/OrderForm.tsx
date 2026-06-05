@@ -204,19 +204,6 @@ export default function OrderForm({ customers, users, orders, onSave, onCancel }
   const [carpenterLabourRate, setCarpenterLabourRate] = React.useState<number | ''>('');
   const [polishLabourRate, setPolishLabourRate] = React.useState<number | ''>('');
 
-  // Automatically select the first available carpenter and polish person once loaded asynchronously
-  React.useEffect(() => {
-    if (!carpenterId && activeCarpenters.length > 0) {
-      setCarpenterId(activeCarpenters[0].id);
-    }
-  }, [activeCarpenters, carpenterId]);
-
-  React.useEffect(() => {
-    if (!polishPersonId && activePolish.length > 0) {
-      setPolishPersonId(activePolish[0].id);
-    }
-  }, [activePolish, polishPersonId]);
-
   // --- STEP 5: REVIEW STATE ---
   const [orderDate, setOrderDate] = React.useState(new Date().toISOString().split('T')[0]);
   const [deliveryDate, setDeliveryDate] = React.useState(
@@ -340,14 +327,10 @@ export default function OrderForm({ customers, users, orders, onSave, onCancel }
       targetCustomerId = generatedCustId;
     }
 
-    // Build the order record itself with safety fallbacks to prevent empty assignments or blank article numbers
-    const finalCarpenterId = carpenterId || (activeCarpenters.length > 0 ? activeCarpenters[0].id : '');
-    const finalPolishPersonId = polishPersonId || (activePolish.length > 0 ? activePolish[0].id : '');
-    const finalArticleNo = articlePreview || generateArticleNumber(category, finalCarpenterId, orders, users);
-
+    // Build the order record itself
     const newOrder: Order = {
       id: 'order_' + generateUUID().split('-')[0],
-      article_no: finalArticleNo,
+      article_no: articlePreview,
       customer_id: targetCustomerId,
       category,
       sub_category: subCategory,
@@ -358,9 +341,9 @@ export default function OrderForm({ customers, users, orders, onSave, onCancel }
       finish,
       color_shade: colorShade,
       no_of_units: noOfUnits,
-      carpenter_id: finalCarpenterId,
+      carpenter_id: carpenterId,
       carpenter_labour_rate: carpenterLabourRate !== '' ? Number(carpenterLabourRate) : undefined,
-      polish_person_id: finalPolishPersonId || undefined,
+      polish_person_id: polishPersonId || undefined,
       polish_labour_rate: polishLabourRate !== '' ? Number(polishLabourRate) : undefined,
       current_status: 'Pending',
       is_delayed: false,

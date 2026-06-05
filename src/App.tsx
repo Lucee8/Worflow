@@ -18,6 +18,7 @@ import {
   saveUserToFirebase,
   deleteUserFromFirebase
 } from './db/firebaseService';
+import { auth } from './db/firebase';
 
 // Component imports
 import SimulationHUD from './components/SimulationHUD';
@@ -44,34 +45,8 @@ export default function App() {
   const [currentTab, setCurrentTab] = React.useState<string>('dashboard');
   const [selectedOrderId, setSelectedOrderId] = React.useState<string | null>(null);
 
-  // Active simulated user session (start by rehydrating from localStorage to persist across refreshes)
-  const [currentUser, setCurrentUser] = React.useState<User | null>(() => {
-    try {
-      const stored = localStorage.getItem('bhise_workshop_current_user');
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
-
-  // Keep active session profile data in sync with changes from the database
-  React.useEffect(() => {
-    if (currentUser && db.users.length > 0) {
-      const liveProfile = db.users.find((u) => u.id === currentUser.id);
-      if (liveProfile && JSON.stringify(liveProfile) !== JSON.stringify(currentUser)) {
-        setCurrentUser(liveProfile);
-      }
-    }
-  }, [db.users, currentUser]);
-
-  // Persist current logged in session user details to localStorage
-  React.useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('bhise_workshop_current_user', JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem('bhise_workshop_current_user');
-    }
-  }, [currentUser]);
+  // Active simulated user session (start as null to show login page by default)
+  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
 
   // Firebase connection and sync states
   const [firebaseConnected, setFirebaseConnected] = React.useState<boolean>(false);
@@ -113,6 +88,30 @@ export default function App() {
       }
     };
   }, []);
+
+  // Auto-login persistent Google-authenticated user from Firebase auth session
+  React.useEffect(() => {
+    const unsubscribeAuth = auth.onAuthStateChanged((firebaseUser) => {
+      if (firebaseUser && !firebaseUser.isAnonymous && firebaseUser.email) {
+        const emailLower = firebaseUser.email.trim().toLowerCase();
+        const matched = db.users.find(u => u.email.trim().toLowerCase() === emailLower);
+        
+        if (matched) {
+          if (matched.is_active && (!currentUser || currentUser.email !== matched.email)) {
+            console.log("Auto-logged in Google authenticated user:", matched.name);
+            setCurrentUser(matched);
+            if (matched.role === 'admin') {
+              setCurrentTab('dashboard');
+            } else {
+              setCurrentTab('my_orders');
+            }
+          }
+        }
+      }
+    });
+
+    return () => unsubscribeAuth();
+  }, [db.users, currentUser]);
 
   // Save database shifts on mutations
   const updateDbState = (newDb: AppState) => {
@@ -168,10 +167,15 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setCurrentUser(null);
     setCurrentTab('dashboard');
-    localStorage.removeItem('bhise_workshop_current_user');
+    try {
+      await auth.signOut();
+      await authenticateFirebase();
+    } catch (err) {
+      console.error("Failed to sign out elegantly:", err);
+    }
   };
 
   // Staging CRUD updates actions

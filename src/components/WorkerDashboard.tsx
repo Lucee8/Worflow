@@ -118,12 +118,13 @@ export default function WorkerDashboard({
   const isCarpenter = currentUser.role === 'carpenter';
   const myStage: OrderStage = isCarpenter ? 'Carpentry' : 'Polish';
 
-  // Filter orders assigned to this worker (show all assigned orders so workers can see their upcoming pipeline backlog)
+  // Filter orders assigned to this worker
   const myOrders = orders.filter((o) => {
     if (isCarpenter) {
       return o.carpenter_id === currentUser.id;
     } else {
-      return o.polish_person_id === currentUser.id;
+      // Polish person sees work only after carpentry passes QC Check 1
+      return o.polish_person_id === currentUser.id && o.current_status !== 'Pending' && o.current_status !== 'Design' && o.current_status !== 'Carpentry' && o.current_status !== 'QC Check 1';
     }
   });
 

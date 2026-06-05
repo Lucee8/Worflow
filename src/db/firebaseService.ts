@@ -21,6 +21,24 @@ import { User, Customer, Order, StatusLog, Material, Payment } from '../types';
 // Connect with proper authentication securely or fall back to unauthenticated guest mode if Auth is not enabled in Firebase Console
 export async function authenticateFirebase(): Promise<boolean> {
   try {
+    // Wait for auth to initialize so we do not overwrite any existing Google login session
+    await new Promise<void>((resolve) => {
+      const unsubscribe = auth.onAuthStateChanged(() => {
+        unsubscribe();
+        resolve();
+      });
+      // Fallback/timeout after 1200ms
+      setTimeout(() => {
+        resolve();
+      }, 1200);
+    });
+
+    if (auth.currentUser && !auth.currentUser.isAnonymous) {
+      console.log("Existing Google authenticated user session detected:", auth.currentUser.email);
+      await testConnection();
+      return true;
+    }
+
     await signInAnonymously(auth);
     console.log("Firebase Auth signed in anonymously successfully.");
     await testConnection();
