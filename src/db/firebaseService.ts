@@ -129,16 +129,22 @@ export async function seedFirestoreIfEmpty(seedData: AppState): Promise<void> {
       console.log(`Firestore successfully purged of ${deletedCount} test/demo documents.`);
     }
 
-    // Ensure clean production administrator accounts are provisioned
+    // Ensure clean production administrator and artisan accounts are provisioned
     const freshUsersSnapshot = await getDocs(collection(db, 'users'));
-    if (freshUsersSnapshot.empty || freshUsersSnapshot.docs.length === 0) {
-      console.log("No administrators found. Seeding core production credentials...");
-      const seedBatch = writeBatch(db);
-      for (const u of seedData.users) {
+    const existingUserIds = freshUsersSnapshot.docs.map(doc => doc.id);
+    const seedBatch = writeBatch(db);
+    let seededCount = 0;
+
+    for (const u of seedData.users) {
+      if (!existingUserIds.includes(u.id)) {
         seedBatch.set(doc(db, 'users', u.id), u);
+        seededCount++;
       }
+    }
+
+    if (seededCount > 0) {
       await seedBatch.commit();
-      console.log("Core production administrators successfully provisioned in Firestore.");
+      console.log(`${seededCount} core production users and artisans successfully provisioned in Firestore.`);
     }
 
   } catch (error) {

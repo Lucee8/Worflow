@@ -39,6 +39,32 @@ const SEED_USERS: User[] = [
     created_at: '2026-06-02T18:22:29Z',
     password: 'admin',
     google_linked: true,
+  },
+  {
+    id: 'user_amit_prod',
+    name: 'Amit Sharma',
+    email: 'amit@gmail.com',
+    role: 'carpenter',
+    initials: 'AS',
+    is_active: true,
+    last_seen: 'Never active yet',
+    created_at: '2026-06-02T18:22:29Z',
+    password: 'carpenter123',
+    google_linked: true,
+    phone: '9876543211',
+  },
+  {
+    id: 'user_mahesh_prod',
+    name: 'Mahesh Verma',
+    email: 'mahesh@gmail.com',
+    role: 'polish_person',
+    initials: 'MV',
+    is_active: true,
+    last_seen: 'Never active yet',
+    created_at: '2023-06-02T18:22:29Z',
+    password: 'polishperson123',
+    google_linked: true,
+    phone: '9876543212',
   }
 ];
 

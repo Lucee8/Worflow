@@ -44,8 +44,34 @@ export default function App() {
   const [currentTab, setCurrentTab] = React.useState<string>('dashboard');
   const [selectedOrderId, setSelectedOrderId] = React.useState<string | null>(null);
 
-  // Active simulated user session (start as null to show login page by default)
-  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
+  // Active simulated user session (start by rehydrating from localStorage to persist across refreshes)
+  const [currentUser, setCurrentUser] = React.useState<User | null>(() => {
+    try {
+      const stored = localStorage.getItem('bhise_workshop_current_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Keep active session profile data in sync with changes from the database
+  React.useEffect(() => {
+    if (currentUser && db.users.length > 0) {
+      const liveProfile = db.users.find((u) => u.id === currentUser.id);
+      if (liveProfile && JSON.stringify(liveProfile) !== JSON.stringify(currentUser)) {
+        setCurrentUser(liveProfile);
+      }
+    }
+  }, [db.users, currentUser]);
+
+  // Persist current logged in session user details to localStorage
+  React.useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('bhise_workshop_current_user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('bhise_workshop_current_user');
+    }
+  }, [currentUser]);
 
   // Firebase connection and sync states
   const [firebaseConnected, setFirebaseConnected] = React.useState<boolean>(false);
@@ -145,6 +171,7 @@ export default function App() {
   const handleLogout = () => {
     setCurrentUser(null);
     setCurrentTab('dashboard');
+    localStorage.removeItem('bhise_workshop_current_user');
   };
 
   // Staging CRUD updates actions
