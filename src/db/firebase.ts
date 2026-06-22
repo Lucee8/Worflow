@@ -11,7 +11,12 @@ import firebaseConfig from '../firebase-applet-config.json';
 // Initialize Firebase (Singleton pattern to prevent re-initialization errors)
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+// Use custom database ID in the platform environment but fallback to default database ID when run locally 
+const databaseId = firebaseConfig.projectId === "adroit-acronym-78gvj" 
+  ? firebaseConfig.firestoreDatabaseId 
+  : undefined;
+
+export const db = getFirestore(app, databaseId);
 export const auth = getAuth(app);
 
 export enum OperationType {

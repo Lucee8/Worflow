@@ -230,7 +230,19 @@ export default function LoginScreen({ users, onLoginSuccess }: LoginScreenProps)
               
               {/* App logo framing */}
               <div className="flex items-center gap-2 justify-center pb-4 border-b border-stone-100">
-                <div className="bg-[#593622] text-white px-2 py-1 rounded-lg font-black text-xs shadow border border-stone-800">
+                <img 
+                  src="/logo.png" 
+                  alt="Logo" 
+                  className="w-8 h-8 rounded-lg object-contain bg-[#593622] p-1 shadow border border-stone-800"
+                  onError={(e) => {
+                    // Show text fallback if logo.png is not loaded
+                    e.currentTarget.style.display = 'none';
+                    const fallback = document.getElementById('logo-fallback-login');
+                    if (fallback) fallback.classList.remove('hidden');
+                  }}
+                  referrerPolicy="no-referrer"
+                />
+                <div id="logo-fallback-login" className="hidden bg-[#593622] text-white px-2 py-1 rounded-lg font-black text-xs shadow border border-stone-800">
                   Bh
                 </div>
                 <div className="text-left">

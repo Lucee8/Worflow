@@ -67,10 +67,14 @@ export default function App() {
         // Subscribes to snapshotted real-time database updates
         unsubscribe = syncFirestore(
           (updatedState) => {
-            setDb((currentDb) => ({
-              ...currentDb,
-              ...updatedState,
-            }));
+            setDb((currentDb) => {
+              const nextDb = {
+                ...currentDb,
+                ...updatedState,
+              };
+              saveState(nextDb);
+              return nextDb;
+            });
           },
           (error) => {
             console.error("Firestore sync subscription error:", error);

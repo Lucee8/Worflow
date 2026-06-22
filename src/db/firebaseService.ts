@@ -49,106 +49,49 @@ async function testConnection() {
   }
 }
 
-// Check with server and seed if database is currently empty
+// Check with server and sync any local cache records to Firestore if they are missing or if the DB is empty
 export async function seedFirestoreIfEmpty(seedData: AppState): Promise<void> {
   try {
-    const usersCollection = collection(db, 'users');
-    const usersSnapshot = await getDocs(usersCollection);
-    
-    // Check if known legacy demo records exist to run an auto-clean sweep
-    const ordersCollection = collection(db, 'orders');
-    const ordersSnapshot = await getDocs(ordersCollection);
-
-    const customersCollection = collection(db, 'customers');
-    const customersSnapshot = await getDocs(customersCollection);
-
-    const paymentsCollection = collection(db, 'payments');
-    const paymentsSnapshot = await getDocs(paymentsCollection);
-
-    const statusLogsCollection = collection(db, 'statusLogs');
-    const statusLogsSnapshot = await getDocs(statusLogsCollection);
-
-    const materialsCollection = collection(db, 'materials');
-    const materialsSnapshot = await getDocs(materialsCollection);
-
-    console.log("Performing a complete database verification/clean-up sweep...");
-    const batch = writeBatch(db);
-    let deletedCount = 0;
-
-    // Delete users that are mock characters
-    const mockUserIds = ['user_admin_gmail', 'user_amit_gmail', 'user_mahesh_gmail', 'user_sagar', 'user_vijay', 'user_mahesh', 'user_ramesh', 'user_pooja', 'user_sneha', 'user_amit', 'user_vishal', 'user_tushar'];
-    usersSnapshot.docs.forEach(doc => {
-      if (mockUserIds.includes(doc.id)) {
-        batch.delete(doc.ref);
-        deletedCount++;
+    const syncCollectionToFirestore = async (name: string, items: any[]) => {
+      if (!items || items.length === 0) return;
+      const colRef = collection(db, name);
+      const snapshot = await getDocs(colRef);
+      
+      if (snapshot.empty) {
+        console.log(`Cloud collection '${name}' is empty. Initially seeding '${name}' with ${items.length} local items...`);
+        const batch = writeBatch(db);
+        for (const item of items) {
+          batch.set(doc(db, name, item.id), cleanUndefined(item));
+        }
+        await batch.commit();
+      } else {
+        // If Firestore already has some items, let's identify which local items are missing from the cloud
+        // and upload only the missing ones so local-only or offline-created items are never lost!
+        const existingCloudIds = snapshot.docs.map(doc => doc.id);
+        const missingLocalItems = items.filter(item => item.id && !existingCloudIds.includes(item.id));
+        
+        if (missingLocalItems.length > 0) {
+          console.log(`Uploading ${missingLocalItems.length} local-only items to cloud collection '${name}'...`);
+          const batch = writeBatch(db);
+          for (const item of missingLocalItems) {
+            batch.set(doc(db, name, item.id), cleanUndefined(item));
+          }
+          await batch.commit();
+        }
       }
-    });
+    };
 
-    // Delete mock or demo orders (IDs matching 'order_' + digits/keys)
-    ordersSnapshot.docs.forEach(doc => {
-      if (doc.id.startsWith('order_')) {
-        batch.delete(doc.ref);
-        deletedCount++;
-      }
-    });
+    // Synchronize and seed all collections step by step
+    await syncCollectionToFirestore('users', seedData.users || []);
+    await syncCollectionToFirestore('customers', seedData.customers || []);
+    await syncCollectionToFirestore('orders', seedData.orders || []);
+    await syncCollectionToFirestore('statusLogs', seedData.statusLogs || []);
+    await syncCollectionToFirestore('materials', seedData.materials || []);
+    await syncCollectionToFirestore('payments', seedData.payments || []);
 
-    // Delete mock customers (IDs starting with 'cust_')
-    customersSnapshot.docs.forEach(doc => {
-      if (doc.id.startsWith('cust_')) {
-        batch.delete(doc.ref);
-        deletedCount++;
-      }
-    });
-
-    // Delete mock payments (IDs starting with 'pay_')
-    paymentsSnapshot.docs.forEach(doc => {
-      if (doc.id.startsWith('pay_')) {
-        batch.delete(doc.ref);
-        deletedCount++;
-      }
-    });
-
-    // Delete mock logs (IDs starting with 'log_' + index/suffix)
-    statusLogsSnapshot.docs.forEach(doc => {
-      if (doc.id === 'log_1' || doc.id === 'log_2' || doc.id === 'log_3' || doc.id.startsWith('log_mrp_')) {
-        batch.delete(doc.ref);
-        deletedCount++;
-      }
-    });
-
-    // Delete mock materials (IDs starting with 'mat_')
-    materialsSnapshot.docs.forEach(doc => {
-      if (['mat_ply', 'mat_laminate', 'mat_hinges', 'mat_adhesive'].includes(doc.id) || doc.id.startsWith('mat_')) {
-        batch.delete(doc.ref);
-        deletedCount++;
-      }
-    });
-
-    if (deletedCount > 0) {
-      await batch.commit();
-      console.log(`Firestore successfully purged of ${deletedCount} test/demo documents.`);
-    }
-
-    // Ensure clean production administrator and artisan accounts are provisioned
-    const freshUsersSnapshot = await getDocs(collection(db, 'users'));
-    const existingUserIds = freshUsersSnapshot.docs.map(doc => doc.id);
-    const seedBatch = writeBatch(db);
-    let seededCount = 0;
-
-    for (const u of seedData.users) {
-      if (!existingUserIds.includes(u.id)) {
-        seedBatch.set(doc(db, 'users', u.id), u);
-        seededCount++;
-      }
-    }
-
-    if (seededCount > 0) {
-      await seedBatch.commit();
-      console.log(`${seededCount} core production users and artisans successfully provisioned in Firestore.`);
-    }
-
+    console.log("Database initialization and synchronization sync phase complete.");
   } catch (error) {
-    console.error("Failed to seed and clean Firestore:", error);
+    console.error("Failed to complete local-to-cloud sync phase on initialization:", error);
   }
 }
 
@@ -187,11 +130,30 @@ export function syncFirestore(
   };
 }
 
+// Helper to transitively strip out "undefined" fields which are unsupported by firestore
+function cleanUndefined<T>(obj: T): T {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(item => cleanUndefined(item)) as unknown as T;
+  }
+  if (typeof obj === 'object') {
+    const cleaned: any = {};
+    for (const key of Object.keys(obj)) {
+      const val = (obj as any)[key];
+      if (val !== undefined) {
+        cleaned[key] = cleanUndefined(val);
+      }
+    }
+    return cleaned as T;
+  }
+  return obj;
+}
+
 // Standard Write and Mutate Operations securely isolated with handleFirestoreError
 export async function saveUserToFirebase(user: User): Promise<void> {
   const path = `users/${user.id}`;
   try {
-    await setDoc(doc(db, 'users', user.id), user);
+    await setDoc(doc(db, 'users', user.id), cleanUndefined(user));
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -200,7 +162,7 @@ export async function saveUserToFirebase(user: User): Promise<void> {
 export async function saveCustomerToFirebase(customer: Customer): Promise<void> {
   const path = `customers/${customer.id}`;
   try {
-    await setDoc(doc(db, 'customers', customer.id), customer);
+    await setDoc(doc(db, 'customers', customer.id), cleanUndefined(customer));
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -209,7 +171,7 @@ export async function saveCustomerToFirebase(customer: Customer): Promise<void> 
 export async function saveOrderToFirebase(order: Order): Promise<void> {
   const path = `orders/${order.id}`;
   try {
-    await setDoc(doc(db, 'orders', order.id), order);
+    await setDoc(doc(db, 'orders', order.id), cleanUndefined(order));
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -218,7 +180,7 @@ export async function saveOrderToFirebase(order: Order): Promise<void> {
 export async function saveStatusLogToFirebase(log: StatusLog): Promise<void> {
   const path = `statusLogs/${log.id}`;
   try {
-    await setDoc(doc(db, 'statusLogs', log.id), log);
+    await setDoc(doc(db, 'statusLogs', log.id), cleanUndefined(log));
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -227,7 +189,7 @@ export async function saveStatusLogToFirebase(log: StatusLog): Promise<void> {
 export async function saveMaterialToFirebase(material: Material): Promise<void> {
   const path = `materials/${material.id}`;
   try {
-    await setDoc(doc(db, 'materials', material.id), material);
+    await setDoc(doc(db, 'materials', material.id), cleanUndefined(material));
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -236,7 +198,7 @@ export async function saveMaterialToFirebase(material: Material): Promise<void> 
 export async function savePaymentToFirebase(payment: Payment): Promise<void> {
   const path = `payments/${payment.id}`;
   try {
-    await setDoc(doc(db, 'payments', payment.id), payment);
+    await setDoc(doc(db, 'payments', payment.id), cleanUndefined(payment));
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }

@@ -82,7 +82,19 @@ export default function Sidebar({
       <header className="lg:hidden h-14 bg-stone-900 border-b border-stone-800 px-4 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-2">
           {/* Logo icon */}
-          <div className="bg-amber-500 text-stone-950 px-2 py-1 rounded font-bold text-sm shadow">
+          <img 
+            src="/logo.png" 
+            alt="Logo" 
+            className="w-8 h-8 rounded-lg object-contain bg-amber-500 p-1 shadow"
+            onError={(e) => {
+              // If logo.png is not present yet, show text fallback
+              e.currentTarget.style.display = 'none';
+              const fallback = document.getElementById('logo-fallback-mobile');
+              if (fallback) fallback.classList.remove('hidden');
+            }}
+            referrerPolicy="no-referrer"
+          />
+          <div id="logo-fallback-mobile" className="hidden bg-amber-500 text-stone-950 px-2 py-1 rounded font-bold text-sm shadow">
             Bh
           </div>
           <div>
@@ -134,7 +146,19 @@ export default function Sidebar({
         {/* Sidebar Brand Header (Desktop only) */}
         <div className="p-6 border-b border-stone-900/30 hidden lg:block">
           <div className="flex items-center gap-3">
-            <div className="bg-amber-500 text-stone-950 p-2.5 rounded-xl font-black text-lg shadow-lg border border-amber-400">
+            <img 
+              src="/logo.png" 
+              alt="Logo" 
+              className="w-11 h-11 rounded-xl object-contain bg-amber-500 p-1.5 shadow-lg border border-amber-400"
+              onError={(e) => {
+                // If logo.png is not present yet, show text fallback
+                e.currentTarget.style.display = 'none';
+                const fallback = document.getElementById('logo-fallback-desktop');
+                if (fallback) fallback.classList.remove('hidden');
+              }}
+              referrerPolicy="no-referrer"
+            />
+            <div id="logo-fallback-desktop" className="hidden bg-amber-500 text-stone-950 p-2.5 rounded-xl font-black text-lg shadow-lg border border-amber-400">
               Bh
             </div>
             <div>
